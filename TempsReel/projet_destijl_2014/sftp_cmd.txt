@@ -1,0 +1,2 @@
+cd tp_trs
+put projet_initial/robot
