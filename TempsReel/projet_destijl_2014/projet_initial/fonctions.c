@@ -62,7 +62,7 @@ void communiquer(void *arg) {
     rt_printf("tserver : Début de l'exécution de serveur\n");
     serveur->open(serveur, "8000");
     rt_printf("tserver : Connexion\n");
-
+	// TODO  : connexion avec la camera
     rt_mutex_acquire(&mutexEtat, TM_INFINITE);
     etatCommMoniteur = 0;
     rt_mutex_release(&mutexEtat);
