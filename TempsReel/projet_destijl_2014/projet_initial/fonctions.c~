@@ -31,7 +31,7 @@ void connecter(void * arg) {
         status = robot->open_device(robot);
 
         rt_mutex_acquire(&mutexEtat, TM_INFINITE);
-        etatCommRobot = status;
+        etatCommRobozt = status;
         rt_mutex_release(&mutexEtat);
 
         if (status == STATUS_OK) {
@@ -101,6 +101,7 @@ void communiquer(void *arg) {
 }
 
 void etat_batterie(void *arg) {
+<<<<<<< HEAD
     int batterie = -1;  
     int status ;  
     DMessage *message;
@@ -130,6 +131,20 @@ void etat_batterie(void *arg) {
     	else if (status == STATUS_ERR_TIMEOUT) rt_printf("tbatterie : erreur timeout\n");
     	else if (status == STATUS_ERR_UNKNOWN_CMD) rt_printf("tbatterie : erreur commande introuvable\n");
     	else rt_printf("tbatterie : erreur params ou commande rejetés\n");
+=======
+    int batterie = -1 ;    
+    DMessage *message;
+    
+    rt_printf("tbatterie : Debut de l'éxecution de periodique à 250ms\n");
+    rt_task_set_periodic(NULL, TM_NOW, 250000000);
+    
+     while (1) {
+        /* Attente de l'activation périodique */
+        rt_task_wait_period(NULL);
+        rt_printf("tbatterie : Activation périodique\n");
+        
+    	robot->get_vbat(robot, &batterie);   // Renvoie 0, 1 ou 2 (= etat de la batterie)
+>>>>>>> 89d8d507c616a3c6fc67679bd0fb34e2a1fee7d3
     	// rt_printf("etat de la batterie : %d\n", batterie); 
     
    	message = d_new_message();
@@ -142,7 +157,11 @@ void etat_batterie(void *arg) {
             message->free(message);
    	}
      }
+<<<<<<< HEAD
 } 
+=======
+}    
+>>>>>>> 89d8d507c616a3c6fc67679bd0fb34e2a1fee7d3
 
 void deplacer(void *arg) {   // Argument = mouvement ?
     int status = 1;
