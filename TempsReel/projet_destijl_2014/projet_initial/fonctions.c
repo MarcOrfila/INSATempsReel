@@ -105,42 +105,42 @@ void etat_batterie(void *arg) {
     int status ;  
     DMessage *message;
     
-    rt_printf("tbatterie : Debut de l'éxecution periodique à 250ms\n");
-    rt_task_set_periodic(NULL, TM_NOW, 250000000);
+    rt_printf("tbatterie : Debut de l'éxecution periodique à 450ms\n");
+    rt_task_set_periodic(NULL, TM_NOW, 450000000);
    
      while (1) {
         /* Attente de l'activation périodique */
         rt_task_wait_period(NULL);
         rt_printf("tbatterie1 : Activation périodique\n");
+        
         rt_mutex_acquire(&mutexEtat, TM_INFINITE);
         status=etatCommRobot;
         rt_mutex_release(&mutexEtat);
-        rt_printf("tbatterie2 : status = %d\n", status);
-        while (status == STATUS_OK) {
-            rt_printf("tbatterie3 : on est dans le while\n");
+	
+	while (status == STATUS_OK) {
     	    status = robot->get_vbat(robot, &batterie);   // Renvoie 0, 1 ou 2 (= etat de la batterie)
     	
     	    rt_mutex_acquire(&mutexEtat, TM_INFINITE);
             etatCommRobot = status;
             rt_mutex_release(&mutexEtat);
-        }
-    	
-    	rt_printf("tbatterie4 : status = %d\n", status);
-    	if (status == STATUS_OK) rt_printf("tbatterie : status OK\n");
-    	else if (status == STATUS_ERR_TIMEOUT) rt_printf("tbatterie : erreur timeout\n");
-    	else if (status == STATUS_ERR_UNKNOWN_CMD) rt_printf("tbatterie : erreur commande introuvable\n");
-    	else rt_printf("tbatterie : erreur params ou commande rejetés\n");
-    	// rt_printf("etat de la batterie : %d\n", batterie); 
-    
-   	message = d_new_message();
-   	message->put_state(message, batterie);
+        
+    	    
+    	    if (status == STATUS_OK) rt_printf("tbatterie2 : status OK\n");
+    	    else if (status == STATUS_ERR_TIMEOUT) rt_printf("tbatterie2 : erreur timeout\n");
+    	    else if (status == STATUS_ERR_UNKNOWN_CMD) rt_printf("tbatterie2 : erreur commande introuvable\n");
+    	    else rt_printf("tbatterie2 : erreur params ou commande rejetés\n");
+    	    // rt_printf("etat de la batterie : %d\n", batterie); 
+    	    
+    	    message = d_new_message();
+   	    message->put_state(message, batterie);
 
-   	rt_printf("tbatterie : Envoi message\n");
-   	message->print(message, 100);
+   	    rt_printf("tbatterie3 : Envoi message\n");
+   	    message->print(message, 100);
 
-   	if (write_in_queue(&queueMsgGUI, message, sizeof (DMessage)) < 0) {
-            message->free(message);
-   	}
+   	    if (write_in_queue(&queueMsgGUI, message, sizeof (DMessage)) < 0) {
+                message->free(message);
+   	    }
+        }	
      }
 } 
 
