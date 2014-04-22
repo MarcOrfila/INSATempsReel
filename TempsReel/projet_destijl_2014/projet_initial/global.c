@@ -9,24 +9,40 @@
 
 RT_TASK tServeur;
 RT_TASK tconnect;
+RT_TASK tdeconnect;
 RT_TASK tmove;
 RT_TASK tenvoyer;
 RT_TASK tbatterie;
+RT_TASK tcamera;
+RT_TASK twatchdog;
+RT_TASK tmission;
 
 RT_MUTEX mutexEtat;
 RT_MUTEX mutexMove;
 RT_MUTEX mutexRobot;
 
+RT_MUTEX mutexErreur;
+RT_MUTEX mutexCam;
+RT_MUTEX mutexServeur;
+RT_MUTEX mutexPosition;
+RT_MUTEX mutexArene;
+RT_MUTEX mutexMissionData;
+
+RT_SEM semWatchdog;
 RT_SEM semConnecterRobot;
+RT_SEM semDeconnecterRobot;
 
 RT_QUEUE queueMsgGUI;
 
 int etatCommMoniteur = 1;
 int etatCommRobot = 1;
+
 DRobot *robot;
 DMovement *move;
 DServer *serveur;
-
+Dposition *position;
+DArena *arene;
+DMission *missionData;
 
 int MSG_QUEUE_SIZE = 10;
 
