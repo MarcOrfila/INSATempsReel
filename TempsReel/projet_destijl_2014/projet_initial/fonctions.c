@@ -5,7 +5,7 @@ int write_in_queue(RT_QUEUE *msgQueue, void * data, int size);
 void envoyer(void * arg) {
     DMessage *msg;
     int err;
-
+// ceci est un commentaire
     while (1) {
         rt_printf("tenvoyer : Attente d'un message\n");
         if ((err = rt_queue_read(&queueMsgGUI, &msg, sizeof (DMessage), TM_INFINITE)) >= 0) {
