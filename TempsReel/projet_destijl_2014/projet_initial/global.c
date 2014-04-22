@@ -15,6 +15,7 @@ RT_TASK tbatterie;
 
 RT_MUTEX mutexEtat;
 RT_MUTEX mutexMove;
+RT_MUTEX mutexRobot;
 
 RT_SEM semConnecterRobot;
 

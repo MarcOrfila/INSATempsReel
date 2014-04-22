@@ -20,6 +20,7 @@ extern RT_TASK tbatterie;
 /* @descripteurs des mutex */
 extern RT_MUTEX mutexEtat;
 extern RT_MUTEX mutexMove;
+extern RT_MUTEX mutexRobot;
 
 /* @descripteurs des sempahore */
 extern RT_SEM semConnecterRobot;
