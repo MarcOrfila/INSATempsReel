@@ -62,7 +62,7 @@ void communiquer(void *arg) {
     rt_printf("tserver : Début de l'exécution de serveur\n");
     serveur->open(serveur, "8000");
     rt_printf("tserver : Connexion\n");
-
+	// TODO  : connexion avec la camera
     rt_mutex_acquire(&mutexEtat, TM_INFINITE);
     etatCommMoniteur = 0;
     rt_mutex_release(&mutexEtat);
@@ -130,17 +130,17 @@ void etat_batterie(void *arg) {
     	    else if (status == STATUS_ERR_UNKNOWN_CMD) rt_printf("tbatterie2 : erreur commande introuvable\n");
     	    else rt_printf("tbatterie2 : erreur params ou commande rejetés\n");
     	    // rt_printf("etat de la batterie : %d\n", batterie); 
-        }
-        
-   	message = d_new_message();
-   	message->put_state(message, batterie);
+    	    
+    	    message = d_new_message();
+   	    message->put_state(message, batterie);
 
-   	rt_printf("tbatterie3 : Envoi message\n");
-   	message->print(message, 100);
+   	    rt_printf("tbatterie3 : Envoi message\n");
+   	    message->print(message, 100);
 
-   	if (write_in_queue(&queueMsgGUI, message, sizeof (DMessage)) < 0) {
-            message->free(message);
-   	}
+   	    if (write_in_queue(&queueMsgGUI, message, sizeof (DMessage)) < 0) {
+                message->free(message);
+   	    }
+        }	
      }
 } 
 
