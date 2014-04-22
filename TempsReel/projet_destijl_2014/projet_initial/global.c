@@ -41,7 +41,7 @@ DMovement *move;
 DServer *serveur;
 Dposition *position;
 DArena *arene;
-DMission *missionData
+DMission *missionData;
 
 int MSG_QUEUE_SIZE = 10;
 
