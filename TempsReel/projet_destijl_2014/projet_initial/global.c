@@ -27,6 +27,7 @@ RT_MUTEX mutexServeur;
 RT_MUTEX mutexPosition;
 RT_MUTEX mutexArene;
 RT_MUTEX mutexMissionData;
+RT_MUTEX mutexMission;
 
 RT_SEM semWatchdog;
 RT_SEM semConnecterRobot;
@@ -36,6 +37,7 @@ RT_QUEUE queueMsgGUI;
 
 int etatCommMoniteur = 1;
 int etatCommRobot = 1;
+etats etatMission;
 
 DRobot *robot;
 DMovement *move;
@@ -43,6 +45,7 @@ DServer *serveur;
 Dposition *position;
 DArena *arene;
 DMission *missionData;
+DMission *mission;
 
 int MSG_QUEUE_SIZE = 10;
 

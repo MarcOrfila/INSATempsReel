@@ -55,7 +55,7 @@ void connecter(void * arg) {
 }
 
 void communiquer(void *arg) {
-    DMessage *msg = d_new_message();
+ DMessage *msg = d_new_message();
     int var1 = 1;   // Var qui represente le nombre d'octets recus
     int num_msg = 0;
 
@@ -69,19 +69,41 @@ void communiquer(void *arg) {
 
     while (var1 > 0) {
         rt_printf("tserver : Attente d'un message\n");
-        var1 = serveur->receive(serveur, msg);
+        var1 = serveur->receive(serveur, msg); // gérer si la connexion avec le moniteur a été perdue --> reception failed
         num_msg++;
         if (var1 > 0) {
-            switch (msg->get_type(msg)) {   /* Todo : ajouter les autres types de messages (MESSAGE_TYPE_CHAR, 							MESSAGE_TYPE_IMAGE, MESSAGE_TYPE_INT, MESSAGE_TYPE_MISSION, MESSAGE_TYPE_ORDER, 						MESSAGE_TYPE_POSITION, MESSAGE_TYPE_STATE, MESSAGE_TYPE_STRING, MESSAGE_TYPE_UNKNOWN, 							MESSAGE_TYPE_VERSION) */
+            switch (msg->get_type(msg)) {
                 case MESSAGE_TYPE_ACTION:
                     rt_printf("tserver : Le message %d reçu est une action\n", num_msg);
                     DAction *action = d_new_action();
                     action->from_message(action, msg);
                     switch (action->get_order(action)) {    
-                        case ACTION_CONNECT_ROBOT:          /* Todo : ajouter les autres types d'actions (#ACTION_FIND_ARENA, 									#ACTION_ARENA_FAILED, #ACTION_ARENA_IS_FOUND, 									#ACTION_COMPUTE_CONTINUOUSLY_POSITION, #ACTION_ARENA_FAILED)*/
+                        case ACTION_CONNECT_ROBOT: 
                             rt_printf("tserver : Action connecter robot\n");
                             rt_sem_v(&semConnecterRobot);
                             break;
+                        case ACTION_COMPUTE_CONTINUOUSLY_POSITION:
+                            rt_printf("tserver : Calcul périodique position robot\n");
+                            //lancer le calcul périodique de la position du robot
+                            break;
+                        case ACTION_FIND_ARENA:
+                            rt_printf("tserver : Action recherche arene\n");
+                            //lancer la recherche de l'arene
+                            break;
+                        case ACTION_ARENA_FAILED:
+                            rt_printf("tserver : Arret recherche arene, retour acquisition image\n");
+                            //stopper la recherche de l'arene
+                            //relancer l'acquisition d'image
+                            break;
+                        case ACTION_ARENA_IS_FOUND:
+                            rt_printf("tserver : Sauvegarde arene trouvee, retour acquisition image\n");
+                            //sauvegarder l'image de l'arene
+                            //relancer l'acquisition d'image
+                            break;
+                        default :
+                        	rtprintf("ERREUR tserver : Type action non reconnu\n");
+                        	break;
+                        
                     }
                     break;
                 case MESSAGE_TYPE_MOVEMENT:                 
@@ -91,13 +113,32 @@ void communiquer(void *arg) {
                     move->print(move);
                     rt_mutex_release(&mutexMove);
                     break;
-                    
+                case MESSAGE_TYPE_MISSION: 
+                    rt_printf("tserver : Le message reçu %d est une mission\n", num_msg);
+                    mission->from_message(action,msg);
+                    switch(mission->type) {
+                    	case MISSION_TYPE_STOP : 
+                    		//fin de la mission
+                    		rt_mutex_acquire(&mutexMission, TM_INFINITE);
+                    		etatMission = TERMINATED;
+                    		rt_mutex_release(&mutexMission, TM_INFINITE);
+                    		break;
+                    	case MISSION_TYPE_REACH_COORDINATE :
+                    		//assignement d'une mission
+                    		rt_mutex_acquire(&mutexMission, TM_INFINITE);
+                    		etatMission = START;
+                    		rt_mutex_release(&mutexMission, TM_INFINITE);
+                    		break;
+                    	default :
+                    		rt_printf("erreur, type %d non traité\n", mission->type);
+                    		break;
+                    };
+                    break;
                 default:
                     rt_printf("ERREUR tserver : Le message recu %d a un type indefini\n", num_msg);
                     break;
             }
         }
-        //si on perd la connexion
     }
 }
 
