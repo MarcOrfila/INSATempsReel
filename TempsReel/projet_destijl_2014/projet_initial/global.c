@@ -37,7 +37,7 @@ RT_QUEUE queueMsgGUI;
 
 int etatCommMoniteur = 1;
 int etatCommRobot = 1;
-etats etatMission;
+etats_mission etatMission;
 
 DRobot *robot;
 DMovement *move;
