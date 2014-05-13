@@ -11,7 +11,7 @@
 #include "includes.h"
 
 //type énuméré reprenant les différents états d'une mission
-enum etats {TERMINATED, COMPLETED, PENDING, TURN, MOVE, START};
+typedef enum etats {TERMINATED, COMPLETED, PENDING, TURN, MOVE, START} etats;
 
 /* @descripteurs des tâches */
 extern RT_TASK tServeur;

@@ -42,7 +42,7 @@ etats etatMission;
 DRobot *robot;
 DMovement *move;
 DServer *serveur;
-Dposition *position;
+DPosition *position;
 DArena *arene;
 DMission *missionData;
 DMission *mission;
