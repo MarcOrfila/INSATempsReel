@@ -28,6 +28,7 @@ RT_MUTEX mutexPosition;
 RT_MUTEX mutexArene;
 RT_MUTEX mutexMissionData;
 RT_MUTEX mutexMission;
+RT_MUTEX mutexTentatives;
 
 RT_SEM semWatchdog;
 RT_SEM semConnecterRobot;
@@ -47,6 +48,7 @@ DArena *arene;
 DMission *missionData;
 DMission *mission;
 
+int tentatives = 0;
 int MSG_QUEUE_SIZE = 10;
 
 int PRIORITY_TSERVEUR = 30;

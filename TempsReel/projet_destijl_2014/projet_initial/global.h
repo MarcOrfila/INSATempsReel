@@ -35,7 +35,7 @@ extern RT_MUTEX mutexServeur;
 extern RT_MUTEX mutexPosition;
 extern RT_MUTEX mutexArene;
 extern RT_MUTEX mutexMissionData;   /// utilisé ou pas?
-
+extern RT_MUTEX mutexTentatives;
 
 /* @descripteurs des sempahore */
 extern RT_SEM semConnecterRobot;
@@ -47,6 +47,7 @@ extern RT_QUEUE queueMsgGUI;
 extern int etatCommMoniteur;
 extern int etatCommRobot;
 extern etats_mission etatMission;
+extern int tentatives;
 
 extern DServer *serveur;
 extern DRobot *robot;
