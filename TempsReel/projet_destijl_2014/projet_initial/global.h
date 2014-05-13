@@ -46,8 +46,10 @@ extern RT_QUEUE queueMsgGUI;
 /* @variables partagées */
 extern int etatCommMoniteur;
 extern int etatCommRobot;
+extern int etatCamera = ACTION_STOP_COMPUTE_POSITION;
 extern etats_mission etatMission;
 extern int tentatives;
+
 
 extern DServer *serveur;
 extern DRobot *robot;

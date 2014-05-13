@@ -38,6 +38,7 @@ RT_QUEUE queueMsgGUI;
 
 int etatCommMoniteur = 1;
 int etatCommRobot = 1;
+int etatCamera = ACTION_STOP_COMPUTE_POSITION;
 etats_mission etatMission;
 
 DRobot *robot;
