@@ -11,7 +11,7 @@
 #include "includes.h"
 
 //type énuméré reprenant les différents états d'une mission
-enum etats {TERMINATED, COMPLETED, PENDING, TURN, MOVE, START};
+typedef enum etats_mission {TERMINATED, COMPLETED, PENDING, TURN, MOVE, START} etats_mission;
 
 /* @descripteurs des tâches */
 extern RT_TASK tServeur;
@@ -20,12 +20,22 @@ extern RT_TASK tmove;
 extern RT_TASK tenvoyer;
 extern RT_TASK tbatterie;
 extern RT_TASK tmission;
+extern RT_TASK tcamera;
+extern RT_TASK twatchdog;
 
 /* @descripteurs des mutex */
 extern RT_MUTEX mutexEtat;
 extern RT_MUTEX mutexMove;
 extern RT_MUTEX mutexRobot;
 extern RT_MUTEX mutexMission;
+
+extern RT_MUTEX mutexErreur;
+extern RT_MUTEX mutexCam;
+extern RT_MUTEX mutexServeur;
+extern RT_MUTEX mutexPosition;
+extern RT_MUTEX mutexArene;
+extern RT_MUTEX mutexMissionData;   /// utilisé ou pas?
+
 
 /* @descripteurs des sempahore */
 extern RT_SEM semConnecterRobot;
@@ -36,7 +46,7 @@ extern RT_QUEUE queueMsgGUI;
 /* @variables partagées */
 extern int etatCommMoniteur;
 extern int etatCommRobot;
-extern etats etatMission;
+extern etats_mission etatMission;
 
 extern DServer *serveur;
 extern DRobot *robot;

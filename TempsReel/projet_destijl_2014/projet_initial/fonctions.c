@@ -101,7 +101,7 @@ void communiquer(void *arg) {
                             //relancer l'acquisition d'image
                             break;
                         default :
-                        	rtprintf("ERREUR tserver : Type action non reconnu\n");
+                        	rt_printf("ERREUR tserver : Type action non reconnu\n");
                         	break;
                         
                     }
@@ -115,19 +115,19 @@ void communiquer(void *arg) {
                     break;
                 case MESSAGE_TYPE_MISSION: 
                     rt_printf("tserver : Le message reçu %d est une mission\n", num_msg);
-                    mission->from_message(action,msg);
+                    mission->from_message(mission,msg);
                     switch(mission->type) {
                     	case MISSION_TYPE_STOP : 
                     		//fin de la mission
                     		rt_mutex_acquire(&mutexMission, TM_INFINITE);
                     		etatMission = TERMINATED;
-                    		rt_mutex_release(&mutexMission, TM_INFINITE);
+                    		rt_mutex_release(&mutexMission);
                     		break;
                     	case MISSION_TYPE_REACH_COORDINATE :
                     		//assignement d'une mission
                     		rt_mutex_acquire(&mutexMission, TM_INFINITE);
                     		etatMission = START;
-                    		rt_mutex_release(&mutexMission, TM_INFINITE);
+                    		rt_mutex_release(&mutexMission);
                     		break;
                     	default :
                     		rt_printf("erreur, type %d non traité\n", mission->type);
