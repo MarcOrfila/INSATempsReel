@@ -68,6 +68,7 @@ extern int PRIORITY_TCONNECT;
 extern int PRIORITY_TMOVE;
 extern int PRIORITY_TENVOYER;
 extern int PRIORITY_TBATTERIE;
+extern int PRIORITY_TMISSION;
 
 #endif	/* GLOBAL_H */
 

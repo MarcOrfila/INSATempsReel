@@ -59,3 +59,4 @@ int PRIORITY_TCONNECT = 20;
 int PRIORITY_TMOVE = 10;
 int PRIORITY_TENVOYER = 25;
 int PRIORITY_TBATTERIE = 5;   // on considere le deplacement plus important que la batterie
+int PRIORITY_TMISSION = 27;

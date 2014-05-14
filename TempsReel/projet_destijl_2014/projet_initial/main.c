@@ -61,9 +61,38 @@ void initStruct(void) {
         rt_printf("Error mutex create: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
     }
+    if (err = rt_mutex_create(&mutexEtatMission, NULL)) {
+        rt_printf("Error mutex create: %s\n", strerror(-err));
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_mutex_create(&mutexMission, NULL)) {
+        rt_printf("Error mutex create: %s\n", strerror(-err));
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_mutex_create(&mutexPosition, NULL)) {
+        rt_printf("Error mutex create: %s\n", strerror(-err));
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_mutex_create(&mutexRobot, NULL)) {
+        rt_printf("Error mutex create: %s\n", strerror(-err));
+        exit(EXIT_FAILURE);
+    }
 
-    /* Creation du semaphore */
+/* TODO : créer tous les mutex 
+extern RT_MUTEX mutexErreur;
+extern RT_MUTEX mutexCam;
+extern RT_MUTEX mutexServeur;
+extern RT_MUTEX mutexArene;
+extern RT_MUTEX mutexMissionData; ?????
+*/
+
+    /* Creation des semaphores */
     if (err = rt_sem_create(&semConnecterRobot, NULL, 0, S_FIFO)) {
+        rt_printf("Error semaphore create: %s\n", strerror(-err));
+        exit(EXIT_FAILURE);
+    }
+
+    if (err = rt_sem_create(&semEffectuerMission, NULL, 0, S_FIFO)) {
         rt_printf("Error semaphore create: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
     }
@@ -89,6 +118,12 @@ void initStruct(void) {
         rt_printf("Error task create: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
     }
+    if (err = rt_task_create(&tmission, NULL, 0, PRIORITY_TMISSION, 0)) {
+        rt_printf("Error task create: %s\n", strerror(-err));
+        exit(EXIT_FAILURE);
+    }
+
+	//TODO : créer les tâches pour la caméra et le watchdog
     
     /* Creation des files de messages */
     if (err = rt_queue_create(&queueMsgGUI, "toto", MSG_QUEUE_SIZE*sizeof(DMessage), MSG_QUEUE_SIZE, Q_FIFO)){
@@ -100,6 +135,7 @@ void initStruct(void) {
     robot = d_new_robot();
     move = d_new_movement();
     serveur = d_new_server();
+    mission = d_new_mission();
 }
 
 void startTasks() {
