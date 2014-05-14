@@ -318,7 +318,7 @@ int write_in_queue(RT_QUEUE *msgQueue, void * data, int size) {
     return err;
 }
 
-void mission_reach_coordinates() {
+void mission_reach_coordinates(void * arg) {
 	DPosition positionLocale;
 	DPosition * destination = d_new_position();
 	DMessage * msg;
