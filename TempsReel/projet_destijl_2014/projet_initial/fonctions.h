@@ -19,6 +19,7 @@ extern "C" {
         void deplacer(void *arg);
         void envoyer(void *arg);
         void etat_batterie(void *arg);
+        void mission_reach_coordinates(void *arg);
 #ifdef	__cplusplus
 }
 #endif

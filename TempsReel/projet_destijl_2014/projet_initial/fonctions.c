@@ -1,6 +1,10 @@
 #include "fonctions.h"
+#include <math.h>
+
+#define TODEGRE *180/3.14
 
 int write_in_queue(RT_QUEUE *msgQueue, void * data, int size);
+int verifierPerteConnexion();
 
 void envoyer(void * arg) {
     DMessage *msg;
@@ -56,9 +60,12 @@ void connecter(void * arg) {
 
 void communiquer(void *arg) {
  DMessage *msg = d_new_message();
+ DMission * missionLocal;
     int var1 = 1;   // Var qui represente le nombre d'octets recus
     int num_msg = 0;
-
+    //int busy; //représente l'état occupé ou non du robot
+    int again = 1;
+    
     rt_printf("tserver : Début de l'exécution de serveur\n");
     serveur->open(serveur, "8000");
     rt_printf("tserver : Connexion\n");
@@ -113,24 +120,61 @@ void communiquer(void *arg) {
                     move->print(move);
                     rt_mutex_release(&mutexMove);
                     break;
+                
                 case MESSAGE_TYPE_MISSION: 
                     rt_printf("tserver : Le message reçu %d est une mission\n", num_msg);
-                    mission->from_message(mission,msg);
-                    switch(mission->type) {
+                    missionLocal = d_new_mission();
+                    missionLocal->from_message(missionLocal,msg);
+                    
+                    switch(missionLocal->type) {
                     	case MISSION_TYPE_STOP : 
                     		//fin de la mission
-                    		rt_mutex_acquire(&mutexMission, TM_INFINITE);
-                    		etatMission = TERMINATED;
-                    		rt_mutex_release(&mutexMission);
+                    		//arrêt du robot
+				//VERIFIER SI ON DOIT VERIFIER L'ETAT DU ROBOT AVANT
+				again = 1;
+				rt_mutex_acquire(&mutexRobot, TM_INFINITE);
+				while (again) {
+					if (d_robot_stop(robot) == STATUS_OK) {
+						//réception du message par le robot ok
+						again = 0;
+						//on remet à zéro le nombre d'échecs consécutifs
+                    				tentatives = 0;			      
+						//envoi d'un message indiquant la fin de la mission
+				     		d_message_mission_terminate(msg,d_mission_get_id(mission));
+						if (write_in_queue(&queueMsgGUI, msg, sizeof (DMessage)) < 0)
+					      		msg->free(msg);
+					} else {
+						//pb de réception du message par le robot
+                    				//on vérifie si la connexion avec le robot a vraiment été perdue
+                    				again = verifierPerteConnexion();
+					}
+				}
+				rt_mutex_release(&mutexRobot);
                     		break;
+                    		
                     	case MISSION_TYPE_REACH_COORDINATE :
                     		//assignement d'une mission
-                    		rt_mutex_acquire(&mutexMission, TM_INFINITE);
-                    		etatMission = START;
-                    		rt_mutex_release(&mutexMission);
+                    		rt_mutex_acquire(&mutexEtatMission, TM_INFINITE);
+                    		//on vérifie si une mission est déjà en cours
+                    		if (etatMission == NONE) {
+                    			//aucune mission n'est en cours
+                    			//on assigne la nouvelle mission
+                    			etatMission = PENDING;
+                    			rt_mutex_release(&mutexEtatMission);
+                    			rt_mutex_acquire(&mutexMission, TM_INFINITE);
+                    			mission = missionLocal;
+                    			rt_mutex_release(&mutexMission);
+                    			rt_sem_v(&semEffectuerMission);
+                    		} else {
+                    			//une mission est déjà en cours
+                    			//pour l'instant on ne prend pas en compte l'ordre de mission reçu
+                    			//TODO ranger l'ordre de mission dans une liste de missions en attente
+                    			rt_mutex_release(&mutexEtatMission);
+                    			missionLocal->free(missionLocal);
+                    		}
                     		break;
                     	default :
-                    		rt_printf("erreur, type %d non traité\n", mission->type);
+                    		rt_printf("erreur, type %d non traité\n", missionLocal->type);
                     		break;
                     };
                     break;
@@ -141,6 +185,7 @@ void communiquer(void *arg) {
         }
     }
 }
+
 
 void etat_batterie(void *arg) {
     int niveau = -1;  
@@ -175,7 +220,8 @@ void etat_batterie(void *arg) {
     	    if (status == STATUS_OK) rt_printf("tbatterie2 : status OK\n");
     	    else if (status == STATUS_ERR_TIMEOUT) rt_printf("tbatterie2 : erreur timeout\n");
     	    else if (status == STATUS_ERR_UNKNOWN_CMD) rt_printf("tbatterie2 : erreur commande introuvable\n");
-    	    else rt_printf("tbatterie2 : erreur params ou commande rejetés\n");
+    	    elsex_destination = d_position_get_x(destination);
+		 rt_printf("tbatterie2 : erreur params ou commande rejetés\n");
     	    // rt_printf("etat de la batterie : %d\n", batterie); 
     	    */
     	    
@@ -270,5 +316,180 @@ int write_in_queue(RT_QUEUE *msgQueue, void * data, int size) {
     rt_queue_free(&queueMsgGUI, msg);
 
     return err;
+}
+
+void mission_reach_coordinates() {
+	DPosition positionLocale;
+	DPosition * destination = d_new_position();
+	DMessage * msg;
+	float x_robot, y_robot, x_destination, y_destination, dx, dy, distance, angle;
+	//etats_mission etatMissionLocal;
+	int busy, again, sens;
+	
+	while(1) {
+		//attente d'une mission
+		rt_printf("tmission : Attente du sémaphore semEffectuerMission\n");
+		rt_sem_p(&semEffectuerMission, TM_INFINITE);
+		
+		//récupération de la destination
+		rt_mutex_acquire(&mutexMission, TM_INFINITE);
+		d_mission_get_position(mission, destination);
+		rt_mutex_release(&mutexMission);
+		x_destination = d_position_get_x(destination);
+		y_destination = d_position_get_y(destination);
+		
+		//vérifier que la destination est bien dans l'arène
+		//TODO
+		
+		//récupération de la position
+		//TODO : vérifier que le système est bien dans un état de calcul de position du robot
+		//sinon l'y mettre
+		rt_mutex_acquire(&mutexPosition,TM_INFINITE);
+		positionLocale = *position;
+		rt_mutex_release(&mutexPosition);
+		x_robot = d_position_get_x(&positionLocale);
+		y_robot = d_position_get_y(&positionLocale);
+		
+		//on vérifie si le robot est arrivé à destination
+		dx = x_robot - x_destination;
+		dy = y_robot - y_destination;
+		
+		if ((dx == 0) && (dy == 0)) {
+			//mission accomplie
+			//envoi d'un message indiquant la fin de la mission
+			msg = d_new_message();
+			d_message_mission_terminate(msg,d_mission_get_id(mission));
+			if (write_in_queue(&queueMsgGUI, msg, sizeof (DMessage)) < 0)
+				msg->free(msg);
+			
+			//on indique qu'aucune mission n'est en cours
+			//TODO : améliorer en implémentant la liste de missions à effectuer
+			rt_mutex_acquire(&mutexEtatMission,TM_INFINITE);
+			etatMission = NONE;
+			rt_mutex_release(&mutexEtatMission);
+		} else {
+			//mission non accomplie
+			//le robot va devoir bouger (d'abord tourner puis se déplacer)
+			
+			//calcul de l'angle selon lequel le robot doit tourner
+			if (dy == 0) {
+				//le robot se trouve sur la même ligne que son objectif
+					if (dx < 0) {
+						//le robot doit aller sur sa droite
+				       		angle = - d_position_get_orientation(&positionLocale)TODEGRE;
+				       	} else {
+				       		//le robot doit aller sur sa gauche
+				       		angle = 180 - d_position_get_orientation(&positionLocale)TODEGRE;
+				       	}
+			} else if (dy > 0) {
+				//le robot se trouve au-dessus de son objectif
+				angle = - d_position_get_orientation(&positionLocale)TODEGRE + 270 - atan(dx/dy)TODEGRE;
+			} else {
+				//le robot se trouve en-dessous de son objectif
+				angle = - d_position_get_orientation(&positionLocale)TODEGRE + 90 - atan(dx/dy)TODEGRE;
+			}
+			
+			if (angle > 180)
+				angle = angle - 360;
+			if (angle < - 180)
+				angle = angle + 360;
+			
+			if (angle > 0)	
+				sens = HORAIRE;
+			else
+				sens = ANTI_HORAIRE;
+				       
+			//envoi du message au robot
+			busy = 1;
+			//on attend que le robot ait fini sa tâche
+			rt_mutex_acquire(&mutexRobot, TM_INFINITE);
+			while (busy == 1) {
+				//GESTION DE LA PERTE DE CONNEXION
+				again = 1;
+				while(again) {
+					if (d_robot_is_busy(robot, &busy) == STATUS_OK) {
+				       		//réception du message par le robot ok
+				       		again = 0;
+				       		//on remet à zéro le nombre d'échecs consécutifs
+				       		tentatives = 0;                
+				       	} else {
+				       		//pb de réception du message par le robot
+						//on vérifie si la connexion avec le robot a vraiment été perdue
+						again = verifierPerteConnexion();
+					}
+				}
+			}
+			
+			//le robot a fini sa tâche
+			//envoi de l'ordre de rotation
+			again = 1;
+			while (again) {
+				if (d_robot_turn(robot, fabs(angle), sens) == STATUS_OK) {
+					//réception du message par le robot ok
+					again = 0;
+					//on remet à zéro le nombre d'échecs consécutifs
+					tentatives = 0;               
+				} else {
+					//pb de réception du message par le robot
+					//on vérifie si la connexion avec le robot a vraiment été perdue
+					again = verifierPerteConnexion();
+				}
+			}
+			rt_mutex_release(&mutexRobot);
+			
+			//le robot a effectué sa rotation, il doit se déplacer
+			//calcul de la distance à parcourir
+			distance = sqrt(dx*dx + dy*dy);
+				       	
+			busy = 1;
+			
+			//on attend que le robot ait fini sa tâche
+			rt_mutex_acquire(&mutexRobot, TM_INFINITE);
+			while (busy == 1) {
+				//GESTION DE LA PERTE DE CONNEXION
+				again = 1;
+				while (again) {
+					if (d_robot_is_busy(robot, &busy) == STATUS_OK) {
+						//réception du message par le robot ok
+						again = 0;
+						//on remet à zéro le nombre d'échecs consécutifs
+						tentatives = 0;                 
+					} else {
+					//pb de réception du message par le robot
+					//on vérifie si la connexion avec le robot a vraiment été perdue
+					again = verifierPerteConnexion();
+					}
+				}	
+			}
+			
+			//envoi de l'ordre de mouvement
+			again = 1;
+			while (again) {
+				if (d_robot_move(robot, distance) == STATUS_OK) {
+					//réception du message par le robot ok
+					again = 0;
+					//on remet à zéro le nombre d'échecs consécutifs
+					tentatives = 0;                 
+				} else {
+					//pb de réception du message par le robot
+					//on vérifie si la connexion avec le robot a vraiment été perdue
+					again = verifierPerteConnexion();
+				}	
+			}
+			rt_mutex_release(&mutexRobot);
+		}
+	}
+}
+
+
+int verifierPerteConnexion() {
+	tentatives ++;
+        
+        if (tentatives >= 3) {
+        	//arrêter tout ce qui est en rapport avec le robot
+        	//TODO
+        	return 0;
+        }      
+        return 1;
 }
 
