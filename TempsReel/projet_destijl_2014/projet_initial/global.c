@@ -60,3 +60,4 @@ int PRIORITY_TMOVE = 10;
 int PRIORITY_TENVOYER = 35;   // Pour éviter les segfaults, il faut que la priorité de tenvoyer soit supérieure à toutes celles des fonctions qui utilisent un write in queue
 int PRIORITY_TBATTERIE = 5; 
 int PRIORITY_TMISSION = 27;
+int PRIORITY_TWATCHDOG = 40;

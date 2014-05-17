@@ -41,6 +41,7 @@ extern RT_MUTEX mutexEtatMission;
 /* @descripteurs des sempahore */
 extern RT_SEM semConnecterRobot;
 extern RT_SEM semEffectuerMission;
+extern RT_SEM semWatchdog;
 
 /* @descripteurs des files de messages */
 extern RT_QUEUE queueMsgGUI;
@@ -69,6 +70,7 @@ extern int PRIORITY_TMOVE;
 extern int PRIORITY_TENVOYER;
 extern int PRIORITY_TBATTERIE;
 extern int PRIORITY_TMISSION;
+extern int PRIORITY_TWATCHDOG;
 
 #endif	/* GLOBAL_H */
 

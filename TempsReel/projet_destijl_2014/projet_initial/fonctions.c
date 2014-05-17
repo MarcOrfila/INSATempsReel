@@ -61,6 +61,80 @@ void connecter(void * arg) {
     }
 }
 
+/*void connecter(void * arg) {
+    int status;
+    int again = 1; 
+    DMessage *message;
+
+    rt_printf("tconnect : Debut de l'exécution de tconnect\n");
+
+    while (1) {
+        rt_printf("tconnect : Attente du sémarphore semConnecterRobot\n");
+        rt_sem_p(&semConnecterRobot, TM_INFINITE);
+        
+        rt_printf("tconnect : Ouverture de la communication avec le robot\n");
+        do{
+        	rt_mutex_acquire(&mutexRobot, TM_INFINITE);
+        	status = robot->open_device(robot);
+        	rt_mutex_release(&mutexRobot);
+        }
+        while (status != STATUS_OK);
+
+        rt_mutex_acquire(&mutexEtat, TM_INFINITE);
+        etatCommRobot = status;
+        rt_mutex_release(&mutexEtat);
+	
+	rt_mutex_acquire(&mutexRobot, TM_INFINITE);
+		while (again) {
+       			if ((status = robot->start(robot)) == STATUS_OK) {
+            			//réception du message par le robot ok
+            			again = 0;
+        			rt_mutex_acquire(&mutexEtat, TM_INFINITE);
+        			etatCommRobot = status;
+        			rt_mutex_release(&mutexEtat);
+				//on remet à zéro le nombre d'échecs consécutifs
+                   		tentatives = 0;               
+        		}
+ 			else {
+           			//pb de réception du message par le robot
+				//on vérifie si la connexion avec le robot a vraiment été perdue
+                   		again = verifierPerteConnexion();
+        		}
+ 		}
+	rt_mutex_release(&mutexRobot);
+
+        
+        if (status == STATUS_OK) {
+		rt_printf("tconnect : Robot démarré\n");
+		// Demarrer le watchdog
+       		rt_sem_v(&semWatchdog); 
+       	} 
+       			 			
+        /*if (status == STATUS_OK) {
+		rt_mutex_acquire(&mutexRobot, TM_INFINITE);
+		status = robot->start(robot);
+		rt_mutex_release(&mutexRobot);
+		
+		if (status == STATUS_OK) {
+			rt_printf("tconnect : Robot démarré\n");
+			// Demarrer le watchdog
+       			rt_sem_v(&semWatchdog); 
+       		}	
+	}
+        
+        message = d_new_message();
+        message->put_state(message, status);
+
+        rt_printf("tconnect : Envoi message\n");
+        message->print(message, 100);
+
+        if (write_in_queue(&queueMsgGUI, message, sizeof (DMessage)) < 0) {
+            message->free(message);
+        }
+    }
+}*/
+
+
 void communiquer(void *arg) {
  DMessage *msg = d_new_message();
  DMission * missionLocal;
@@ -257,8 +331,8 @@ void deplacer(void *arg) {
     int droite;
     DMessage *message;
 
-    rt_printf("tmove : Debut de l'éxecution de periodique à 1s\n");
-    rt_task_set_periodic(NULL, TM_NOW, 1000000000);
+    rt_printf("tmove : Debut de l'éxecution de periodique à 200 ms\n");
+    rt_task_set_periodic(NULL, TM_NOW, 200000000);
 
     while (1) {
         /* Attente de l'activation périodique */
@@ -268,35 +342,62 @@ void deplacer(void *arg) {
         rt_mutex_acquire(&mutexEtat, TM_INFINITE);
         status = etatCommRobot;
         rt_mutex_release(&mutexEtat);
-
+		// Si la communication avec le robot est OK, on modifie les caractéristiques du moteur en fonction du message et de la vitesse
         if (status == STATUS_OK) {
             rt_mutex_acquire(&mutexMove, TM_INFINITE);
             switch (move->get_direction(move)) {
                 case DIRECTION_FORWARD:
-                    gauche = MOTEUR_ARRIERE_LENT;
-                    droite = MOTEUR_ARRIERE_LENT;
+	            	// Les roues sont lentes si le curseur est à moins de 80%
+	            	if(move->get_speed(move)<=80){
+		                gauche = MOTEUR_ARRIERE_LENT;
+		                droite = MOTEUR_ARRIERE_LENT;
+		            }
+		            else{
+		            	gauche=MOTEUR_ARRIERE_RAPIDE;
+		            	droite=MOTEUR_ARRIERE_RAPIDE;
+		            }
                     break;
                 case DIRECTION_LEFT:
-                    gauche = MOTEUR_ARRIERE_LENT;
-                    droite = MOTEUR_AVANT_LENT;
+                	if(move->get_speed(move)<=80){
+	                    gauche = MOTEUR_ARRIERE_LENT;
+    	                droite = MOTEUR_AVANT_LENT;
+    	            }
+    	            else{
+    	            	gauche = MOTEUR_ARRIERE_RAPIDE;
+    	            	droite = MOTEUR_AVANT_RAPIDE;
+    	            }
                     break;
                 case DIRECTION_RIGHT:
-                    gauche = MOTEUR_AVANT_LENT;
-                    droite = MOTEUR_ARRIERE_LENT;
+                	if(move->get_speed(move)<=80){
+	                    gauche = MOTEUR_AVANT_LENT;
+    	                droite = MOTEUR_ARRIERE_LENT;
+    	                }
+    	            else{
+    	            	gauche = MOTEUR_AVANT_RAPIDE;
+    	            	droite = MOTEUR_ARRIERE_RAPIDE;
+    	            }
                     break;
                 case DIRECTION_STOP:
                     gauche = MOTEUR_STOP;
                     droite = MOTEUR_STOP;
                     break;
                 case DIRECTION_STRAIGHT:
-                    gauche = MOTEUR_AVANT_LENT;
-                    droite = MOTEUR_AVANT_LENT;
+                	if(move->get_speed(move)<=80){
+	                    gauche = MOTEUR_AVANT_LENT;
+    	                droite = MOTEUR_AVANT_LENT;
+    	                }
+	                else{
+	                	gauche = MOTEUR_AVANT_RAPIDE;
+	                	droite = MOTEUR_AVANT_RAPIDE;
+	                }
                     break;
             }
             rt_mutex_release(&mutexMove);
-
+			
+			// On applique les modifications et on récupère le résultat dans status
+            rt_mutex_acquire(&mutexRobot , TM_INFINITE);
             status = robot->set_motors(robot, gauche, droite);
-
+			rt_mutex_release(&mutexRobot);
             if (status != STATUS_OK) {
                 rt_mutex_acquire(&mutexEtat, TM_INFINITE);
                 etatCommRobot = status;
@@ -312,6 +413,34 @@ void deplacer(void *arg) {
             }
         }
     }
+}
+
+void watchdog(void * arg) {
+	int status;
+	int watchdogExpired = 0;
+	rt_printf("\n\n\n\nWATCHDOG STARTED\n\n\n\n");
+	rt_task_set_periodic(NULL, TM_NOW, 1000000000); // 1s
+	
+	while(!watchdogExpired){
+	
+		rt_task_wait_period(NULL);
+		rt_sem_p(&semWatchdog, TM_INFINITE);
+		
+		rt_mutex_acquire(&mutexEtat, TM_INFINITE);
+		status = etatCommRobot;
+		rt_mutex_release(&mutexEtat);
+		
+		if(status == STATUS_OK){
+			rt_printf("tWatchdog : Reload\n");
+			rt_mutex_acquire(&mutexRobot, TM_INFINITE);
+			status=robot->reload_wdt(robot);
+			rt_mutex_release(&mutexRobot);
+		}
+		else {
+			watchdogExpired = 1;
+			rt_task_set_periodic(NULL, TM_NOW, TM_INFINITE); 
+		}
+	}
 }
 
 void mission_reach_coordinates(void * arg) {
