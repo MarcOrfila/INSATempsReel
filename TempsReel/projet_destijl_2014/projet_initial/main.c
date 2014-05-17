@@ -77,14 +77,22 @@ void initStruct(void) {
         rt_printf("Error mutex create: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
     }
-
-/* TODO : créer tous les mutex 
-extern RT_MUTEX mutexErreur;
-extern RT_MUTEX mutexCam;
-extern RT_MUTEX mutexServeur;
-extern RT_MUTEX mutexArene;
-extern RT_MUTEX mutexMissionData; ?????
-*/
+    if (err = rt_mutex_create(&mutexServeur, NULL)) {
+        rt_printf("Error mutex create: %s\n", strerror(-err));
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_mutex_create(&mutexCam, NULL)) {
+        rt_printf("Error mutex create: %s\n", strerror(-err));
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_mutex_create(&mutexArene, NULL)) {
+        rt_printf("Error mutex create: %s\n", strerror(-err));
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_mutex_create(&mutexErreur, NULL)) {
+        rt_printf("Error mutex create: %s\n", strerror(-err));
+        exit(EXIT_FAILURE);
+    }
 
     /* Creation des semaphores */
     if (err = rt_sem_create(&semConnecterRobot, NULL, 0, S_FIFO)) {
@@ -118,10 +126,10 @@ extern RT_MUTEX mutexMissionData; ?????
         rt_printf("Error task create: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
     }
-    /* if (err = rt_task_create(&twatchdog, NULL, 0, PRIORITY_TWATCHDOG, 0)) {
+    if (err = rt_task_create(&twatchdog, NULL, 0, PRIORITY_TWATCHDOG, 0)) {
         rt_printf("Error task create: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
-    }*/
+    }
     if (err = rt_task_create(&tbatterie, NULL, 0, PRIORITY_TBATTERIE, 0)) {
         rt_printf("Error task create: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
@@ -130,8 +138,10 @@ extern RT_MUTEX mutexMissionData; ?????
         rt_printf("Error task create: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
     }
-
-	//TODO : créer les tâches pour la caméra et le watchdog
+    if (err = rt_task_create(&tcamera, NULL, 0, PRIORITY_TCAMERA, 0)) {
+        rt_printf("Error task create: %s\n", strerror(-err));
+        exit(EXIT_FAILURE);
+    }
     
     /* Creation des files de messages */
     if (err = rt_queue_create(&queueMsgGUI, "toto", MSG_QUEUE_SIZE*sizeof(DMessage), MSG_QUEUE_SIZE, Q_FIFO)){
@@ -168,7 +178,15 @@ void startTasks() {
         rt_printf("Error task start: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
     }
-    /* if (err = rt_task_start(&twatchdog, &watchdog, NULL)) {
+    if (err = rt_task_start(&twatchdog, &watchdog, NULL)) {
+        rt_printf("Error task start: %s\n", strerror(-err));
+        exit(EXIT_FAILURE);
+    }
+    if (err = rt_task_start(&tmission, &mission_reach_coordinates, NULL)) {
+        rt_printf("Error task start: %s\n", strerror(-err));
+        exit(EXIT_FAILURE);
+    }    
+    /*if (err = rt_task_start(&tcamera, &camera, NULL)) {
         rt_printf("Error task start: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
     }*/
@@ -178,4 +196,9 @@ void deleteTasks() {
     rt_task_delete(&tServeur);
     rt_task_delete(&tconnect);
     rt_task_delete(&tmove);
+    rt_task_delete(&tenvoyer);
+    rt_task_delete(&tbatterie);
+    rt_task_delete(&tmission);
+    //rt_task_delete(&tcamera);
+    rt_task_delete(&twatchdog);
 }
