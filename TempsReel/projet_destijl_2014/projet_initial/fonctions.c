@@ -190,21 +190,23 @@ void etat_batterie(void *arg) {
     DMessage * message;
     DBattery * batterie;
     
-    rt_printf("tbatterie : Debut de l'éxecution periodique à 1s\n");
-    rt_task_set_periodic(NULL, TM_NOW, 1000000000);
+    rt_printf("tbatterie : Debut de l'éxecution periodique à 5s\n");
+    rt_task_set_periodic(NULL, TM_NOW, 5000000000);
    
      while (1) {
      	//prend
      	//libere
+     	// TODO : gérer le mutex 
+     	
         /* Attente de l'activation périodique */
-        rt_task_wait_period(NULL);
+        rt_task_wait_period(NULL);     
         rt_printf("tbatterie : Activation périodique\n");
         batterie = d_new_battery();
         rt_mutex_acquire(&mutexEtat, TM_INFINITE);
         status=etatCommRobot;
         rt_mutex_release(&mutexEtat);
 	
-	while (status == STATUS_OK) {
+	if (status == STATUS_OK) {
 	    rt_mutex_acquire(&mutexRobot, TM_INFINITE);
     	    status = robot->get_vbat(robot, &niveau);   // Renvoie 0, 1 ou 2 (= etat de la batterie)
     	    rt_mutex_release(&mutexRobot);
@@ -212,32 +214,25 @@ void etat_batterie(void *arg) {
     	    rt_mutex_acquire(&mutexEtat, TM_INFINITE);
             etatCommRobot = status;
             rt_mutex_release(&mutexEtat);
-        
-    	    /*
-    	    if (status == STATUS_OK) rt_printf("tbatterie2 : status OK\n");
-    	    else if (status == STATUS_ERR_TIMEOUT) rt_printf("tbatterie2 : erreur timeout\n");
-    	    else if (status == STATUS_ERR_UNKNOWN_CMD) rt_printf("tbatterie2 : erreur commande introuvable\n");
-    	    elsex_destination = d_position_get_x(destination);
-		 rt_printf("tbatterie2 : erreur params ou commande rejetés\n");
-    	    // rt_printf("etat de la batterie : %d\n", batterie); 
-    	    */
     	    
     	    batterie->set_level(batterie, niveau);
     	    
     	    message = d_new_message();
    	    message->put_battery_level(message, batterie);
+   	    rt_printf("\n\n\ntbatterie : etat de la batterie = %d \n\n\n", niveau);
 
    	    rt_printf("tbatterie : Envoi message\n");
    	    message->print(message, 100);
 
    	    if (write_in_queue(&queueMsgGUI, message, sizeof (DMessage)) < 0) {
-                message->free(message);
+                message->free(message);	
    	    }
-        }	
+        }
+        batterie->free(batterie);
      }
 } 
 
-void deplacer(void *arg) {   // Argument = mouvement ?
+void deplacer(void *arg) {   
     int status = 1;
     int gauche;
     int droite;
