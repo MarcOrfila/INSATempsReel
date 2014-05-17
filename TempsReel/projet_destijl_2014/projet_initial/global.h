@@ -71,6 +71,7 @@ extern int PRIORITY_TENVOYER;
 extern int PRIORITY_TBATTERIE;
 extern int PRIORITY_TMISSION;
 extern int PRIORITY_TWATCHDOG;
+extern int PRIORITY_TCAMERA;
 
 #endif	/* GLOBAL_H */
 
