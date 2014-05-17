@@ -21,6 +21,7 @@ extern "C" {
         void etat_batterie(void *arg);
         void mission_reach_coordinates(void * arg);
         void watchdog(void *arg);
+        void camera(void *arg);
 #ifdef	__cplusplus
 }
 #endif

@@ -186,10 +186,10 @@ void startTasks() {
         rt_printf("Error task start: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
     }    
-    /*if (err = rt_task_start(&tcamera, &camera, NULL)) {
+    if (err = rt_task_start(&tcamera, &camera, NULL)) {
         rt_printf("Error task start: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
-    }*/
+    }
 }
 
 void deleteTasks() {
@@ -199,6 +199,6 @@ void deleteTasks() {
     rt_task_delete(&tenvoyer);
     rt_task_delete(&tbatterie);
     rt_task_delete(&tmission);
-    //rt_task_delete(&tcamera);
+    rt_task_delete(&tcamera);
     //rt_task_delete(&twatchdog);
 }
