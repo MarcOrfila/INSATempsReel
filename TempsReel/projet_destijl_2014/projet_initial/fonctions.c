@@ -11,16 +11,36 @@ void connexionMoniteurPerdue();
 void envoyer(void * arg) {
     DMessage *msg;
     int err;
-// ceci est un commentaire
+    int status;
+	int size;
+	
+	rt_printf("tenvoyer : Debut de l'exécution de tenvoyer\n");
+
     while (1) {
         rt_printf("tenvoyer : Attente d'un message\n");
+        
         if ((err = rt_queue_read(&queueMsgGUI, &msg, sizeof (DMessage), TM_INFINITE)) >= 0) {
             rt_printf("tenvoyer : envoi d'un message au moniteur\n");
-            if (serveur->send(serveur, msg) < 0)
-            	connexionMoniteurPerdue();
-            msg->free(msg);
-        } else {
-            rt_printf("Error msg queue write: %s\n", strerror(-err));
+            
+            //verifier l etat des com du  moniteur
+            rt_mutex_acquire(&mutexEtat, TM_INFINITE);
+			status = etatCommMoniteur;
+			rt_mutex_release(&mutexEtat);
+			
+			if (status == STATUS_OK){	
+				rt_mutex_acquire(&mutexServeur, TM_INFINITE);
+				size = serveur-> send(serveur, msg);		//envoi du message
+				rt_mutex_release(&mutexServeur);
+									
+				if (size <= 0){	//= communication perdue
+					connexionMoniteurPerdue();					
+				}						        
+		        msg->free(msg);									//free du message dans tous les cas
+          
+       		} 
+        	else {	//en cas d'erreur d'envoi
+            	rt_printf("Error msg queue write: %s\n", strerror(-err));
+            }
         }
     }
 }
@@ -686,5 +706,14 @@ int verifierPerteConnexion() {
         return 1;
 }
 
-
+/* appelee lorsqu on a perdu la communication du moniteur */
+void connexionMoniteurPerdue(){
+	rt_mutex_acquire(&mutexEtat, TM_INFINITE);
+	etatCommMoniteur = 1;				//remise en attente de connexion
+	rt_mutex_release(&mutexEtat);
+					
+	rt_mutex_acquire(&mutexServeur, TM_INFINITE);
+	serveur->close(serveur);		// fermeture du serveur
+	rt_mutex_release(&mutexServeur);
+}
 
