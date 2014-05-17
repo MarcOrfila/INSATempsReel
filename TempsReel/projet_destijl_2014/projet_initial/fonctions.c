@@ -121,7 +121,8 @@ void connecter(void * arg) {
                    		again = verifierPerteConnexion();
         		}
  		}
-	rt_mutex_release(&mutexRobot);
+	rt_mutex_release(&mutexRobot);expected declaration or statement at end of input
+
 
         
         if (status == STATUS_OK) {
@@ -699,8 +700,11 @@ int verifierPerteConnexion() {
 	tentatives ++;
         
         if (tentatives >= 3) {
-        	//arrêter tout ce qui est en rapport avec le robot
-        	//TODO
+        	rt_task_delete(&tmission);
+        	rt_task_delete(&tbatterie);
+        	rt_task_delete(&tconnect);
+        	rt_task_delete(&tmove);
+        	rt_task_delete(&twatchdog);       	
         	return 0;
         }      
         return 1;
