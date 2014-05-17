@@ -27,6 +27,9 @@ void camera (void * arg){
 	
 	while(1){
 		
+		// Wait null (pour éviter la famine des threads moins prioritaires)
+		rt_task_wait_period(NULL);
+		
 		// Récupération de l'état de la communication
 		rt_mutex_acquire(&mutexEtat,TM_INFINITE);
 		status = etatCommMoniteur;

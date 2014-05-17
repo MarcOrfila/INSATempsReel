@@ -8,7 +8,7 @@ void camera (void * arg){
 	int status;
 	int etat;
 	
-	// déclaration d'un état de sauvegarde dans le cas où on a un problème initial
+	// déclaration d'un état de sauvegarde dans le cas où on a un problème (failure)
 	int backupEtat = ACTION_STOP_COMPUTE_POSITION;
 	
 	// Instruction de contrôle (visible sur terminal)
@@ -186,9 +186,14 @@ void camera (void * arg){
 					// Fonction de la structure équivalente à d_message_free
 						message->free(message);
 					}
-
+					
+					// Modification de l'étatCamera sur le dernier état de fonctionnement normal connu
+					rt_mutex_acquire(&mutexCam, TM_INFINITE);
+					etatCamera = backupEtat;
+					rt_mutex_release(&mutexCam);
+					
+					
 					// Routine de fin de traitement					
-					backupEtat = etat ;
 					jpegimg->free(jpegimg);
 					img->free(img);
 					
@@ -203,14 +208,22 @@ void camera (void * arg){
 					rt_mutex_acquire(&mutexArene, TM_INFINITE);
 					arene->free(arene);
 					rt_mutex_release(&mutexArene);
-				
+					
+					// Modification de l'étatCamera sur le dernier état de fonctionnement normal connu
+					rt_mutex_acquire(&mutexCam, TM_INFINITE);
+					etatCamera = backupEtat;
+					rt_mutex_release(&mutexCam);
 				break;
 				
 				// Succès de la recherche d'arène
 				case ACTION_ARENA_IS_FOUND :
 					// Instruction de contrôle (visible sur terminal) 
-					rt_printf("-------------------- ECHEC DETECTION ARENE THREAD CAMERA -------------------- \n");
+					rt_printf("-------------------- SUCCES DETECTION ARENE THREAD CAMERA -------------------- \n");
 					
+					// Modification de l'étatCamera sur le dernier état de fonctionnement normal connu
+					rt_mutex_acquire(&mutexCam, TM_INFINITE);
+					etatCamera = backupEtat;
+					rt_mutex_release(&mutexCam);
 				break;
 				
 			}
