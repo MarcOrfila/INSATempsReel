@@ -523,7 +523,6 @@ void mission_reach_coordinates(void * arg) {
 					rt_mutex_acquire(&mutexArene, TM_INFINITE);
 					h_arene = arene -> get_height(arene);
 					w_arene = arene -> get_width(arene);
-					rt_mutex_release(&mutexArene);
 					if (0 <= x_destination && x_destination <= w_arene
 					    && 0 <= y_destination && y_destination <= h_arene) {
 					    	//la destination est bien dans l'arene
