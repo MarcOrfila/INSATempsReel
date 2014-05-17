@@ -136,145 +136,156 @@ void connecter(void * arg) {
 
 
 void communiquer(void *arg) {
- DMessage *msg = d_new_message();
- DMission * missionLocal;
-    int var1 = 1;   // Var qui represente le nombre d'octets recus
-    int num_msg = 0;
-    //int busy; //représente l'état occupé ou non du robot
-    int again = 1;
-    
-    rt_printf("tserver : Début de l'exécution de serveur\n");
-    if (serveur->open(serveur, "8000");
-    rt_printf("tserver : Connexion\n");
+	DMessage *msg = d_new_message();
+	DMission * missionLocal;
+	int var1 = 1;   // Var qui represente le nombre d'octets recus
+	int num_msg = 0;
+	//int busy; //représente l'état occupé ou non du robot
+	int again = 1, status;
+	rt_printf("tserver : Début de l'exécution de serveur\n");
+	
+	do {
+		rt_mutex_acquire(&mutexServeur, TM_INFINITE);
+    		status = serveur->open(serveur, "8000");
+    		rt_mutex_release(&mutexServeur);
+    	} while (status != STATUS_OK);
+    	
+    	//connexion établie avec le moniteur
+	rt_printf("tserver : Connexion\n");
 	// TODO  : connexion avec la camera
-    rt_mutex_acquire(&mutexEtat, TM_INFINITE);
-    etatCommMoniteur = 0;
-    rt_mutex_release(&mutexEtat);
-
-    while (var1 > 0) {
-        rt_printf("tserver : Attente d'un message\n");
-        var1 = serveur->receive(serveur, msg); // gérer si la connexion avec le moniteur a été perdue --> reception failed
-        num_msg++;
-        if (var1 > 0) {
-            switch (msg->get_type(msg)) {
-                case MESSAGE_TYPE_ACTION:
-                    rt_printf("tserver : Le message %d reçu est une action\n", num_msg);
-                    DAction *action = d_new_action();
-                    action->from_message(action, msg);
-                    switch (action->get_order(action)) {    
-                        case ACTION_CONNECT_ROBOT: 
-                            rt_printf("tserver : Action connecter robot\n");
-                            rt_sem_v(&semConnecterRobot);
-                            break;
-                        case ACTION_COMPUTE_CONTINUOUSLY_POSITION:
-                            rt_printf("tserver : Calcul périodique position robot\n");
-                            //lancer le calcul périodique de la position du robot
-                            rt_mutex_acquire(&mutexCam, TM_INFINITE);
-                            etatCamera = ACTION_COMPUTE_CONTINUOUSLY_POSITION;
-                            rt_mutex_release(&mutexCam);
-                            break;
-                        case ACTION_FIND_ARENA:
-                            rt_printf("tserver : Action recherche arene\n");
-                            //lancer la recherche de l'arene
-                            rt_mutex_acquire(&mutexCam, TM_INFINITE);
-                            etatCamera = ACTION_FIND_ARENA;
-                            rt_mutex_release(&mutexCam);
-                            break;
-                        case ACTION_ARENA_FAILED:
-                            rt_printf("tserver : Arret recherche arene, retour acquisition image\n");
-                            //stopper la recherche de l'arene
-                            //relancer l'acquisition d'image
-                            rt_mutex_acquire(&mutexCam, TM_INFINITE);
-                            etatCamera = ACTION_ARENA_FAILED;
-                            rt_mutex_release(&mutexCam);
-                            break;
-                        case ACTION_ARENA_IS_FOUND:
-                            rt_printf("tserver : Sauvegarde arene trouvee, retour acquisition image\n");
-                            //sauvegarder l'image de l'arene
-                            //relancer l'acquisition d'image
-                            rt_mutex_acquire(&mutexCam, TM_INFINITE);
-                            etatCamera = ACTION_ARENA_IS_FOUND;
-                            rt_mutex_release(&mutexCam);
-                            
-                            break;
-                        default :
-                        	rt_printf("ERREUR tserver : Type action non reconnu\n");
-                        	break;
-                        
-                    }
-                    break;
-                case MESSAGE_TYPE_MOVEMENT:                 
-                    rt_printf("tserver : Le message reçu %d est un mouvement\n", num_msg);
-                    rt_mutex_acquire(&mutexMove, TM_INFINITE);
-                    move->from_message(move, msg);
-                    move->print(move);
-                    rt_mutex_release(&mutexMove);
-                    break;
-                
-                case MESSAGE_TYPE_MISSION: 
-                    rt_printf("tserver : Le message reçu %d est une mission\n", num_msg);
-                    missionLocal = d_new_mission();
-                    missionLocal->from_message(missionLocal,msg);
-                    
-                    switch(missionLocal->type) {
-                    	case MISSION_TYPE_STOP : 
-                    		//fin de la mission
-                    		rt_mutex_acquire(&mutexEtatMission, TM_INFINITE);
-                    		etatMission = TERMINATED;
-                    		rt_mutex_release(&mutexEtatMission);
-                    		
-                    		//arrêt du robot
-				//VERIFIER SI ON DOIT VERIFIER L'ETAT DU ROBOT AVANT
-				again = 1;
-				rt_mutex_acquire(&mutexRobot, TM_INFINITE);
-				while (again) {
-					if (d_robot_stop(robot) == STATUS_OK) {
-						//réception du message par le robot ok
-						again = 0;
-						//on remet à zéro le nombre d'échecs consécutifs
-                    				tentatives = 0;			      
-					} else {
-						//pb de réception du message par le robot
-                    				//on vérifie si la connexion avec le robot a vraiment été perdue
-                    				again = verifierPerteConnexion();
+	
+	rt_mutex_acquire(&mutexEtat, TM_INFINITE);
+	etatCommMoniteur = STATUS_OK;
+	rt_mutex_release(&mutexEtat);
+	    
+	while (var1 > 0) {
+		rt_printf("tserver : Attente d'un message\n");
+		rt_mutex_acquire(&mutexServeur, TM_INFINITE);
+		var1 = serveur->receive(serveur, msg);
+		rt_mutex_release(&mutexServeur);
+		num_msg++;
+		if (var1 < 0) {
+			//connexion avec le serveur perdue
+			connexionMoniteurPerdue();
+		} else {
+		    switch (msg->get_type(msg)) {
+			case MESSAGE_TYPE_ACTION:
+			    rt_printf("tserver : Le message %d reçu est une action\n", num_msg);
+			    DAction *action = d_new_action();
+			    action->from_message(action, msg);
+			    switch (action->get_order(action)) {    
+			        case ACTION_CONNECT_ROBOT: 
+			            rt_printf("tserver : Action connecter robot\n");
+			            rt_sem_v(&semConnecterRobot);
+			            break;
+			        case ACTION_COMPUTE_CONTINUOUSLY_POSITION:
+			            rt_printf("tserver : Calcul périodique position robot\n");
+			            //lancer le calcul périodique de la position du robot
+			            rt_mutex_acquire(&mutexCam, TM_INFINITE);
+			            etatCamera = ACTION_COMPUTE_CONTINUOUSLY_POSITION;
+			            rt_mutex_release(&mutexCam);
+			            break;
+			        case ACTION_FIND_ARENA:
+			            rt_printf("tserver : Action recherche arene\n");
+			            //lancer la recherche de l'arene
+			            rt_mutex_acquire(&mutexCam, TM_INFINITE);
+			            etatCamera = ACTION_FIND_ARENA;
+			            rt_mutex_release(&mutexCam);
+			            break;
+			        case ACTION_ARENA_FAILED:
+			            rt_printf("tserver : Arret recherche arene, retour acquisition image\n");
+			            //stopper la recherche de l'arene
+			            //relancer l'acquisition d'image
+			            rt_mutex_acquire(&mutexCam, TM_INFINITE);
+			            etatCamera = ACTION_ARENA_FAILED;
+			            rt_mutex_release(&mutexCam);
+			            break;
+			        case ACTION_ARENA_IS_FOUND:
+			            rt_printf("tserver : Sauvegarde arene trouvee, retour acquisition image\n");
+			            //sauvegarder l'image de l'arene
+			            //relancer l'acquisition d'image
+			            rt_mutex_acquire(&mutexCam, TM_INFINITE);
+			            etatCamera = ACTION_ARENA_IS_FOUND;
+			            rt_mutex_release(&mutexCam);
+			            
+			            break;
+			        default :
+			        	rt_printf("ERREUR tserver : Type action non reconnu\n");
+			        	break;
+			    }
+			    break;
+			case MESSAGE_TYPE_MOVEMENT:                 
+			    rt_printf("tserver : Le message reçu %d est un mouvement\n", num_msg);
+			    rt_mutex_acquire(&mutexMove, TM_INFINITE);
+			    move->from_message(move, msg);
+			    move->print(move);
+			    rt_mutex_release(&mutexMove);
+			    break;
+			
+			case MESSAGE_TYPE_MISSION: 
+			    rt_printf("tserver : Le message reçu %d est une mission\n", num_msg);
+			    missionLocal = d_new_mission();
+			    missionLocal->from_message(missionLocal,msg);
+			    
+			    switch(missionLocal->type) {
+			    	case MISSION_TYPE_STOP : 
+			    		//fin de la mission
+			    		rt_mutex_acquire(&mutexEtatMission, TM_INFINITE);
+			    		etatMission = TERMINATED;
+			    		rt_mutex_release(&mutexEtatMission);
+			    		
+			    		//arrêt du robot
+					//VERIFIER SI ON DOIT VERIFIER L'ETAT DU ROBOT AVANT
+					again = 1;
+					rt_mutex_acquire(&mutexRobot, TM_INFINITE);
+					while (again) {
+						if (d_robot_stop(robot) == STATUS_OK) {
+							//réception du message par le robot ok
+							again = 0;
+							//on remet à zéro le nombre d'échecs consécutifs
+			    				tentatives = 0;			      
+						} else {
+							//pb de réception du message par le robot
+			    				//on vérifie si la connexion avec le robot a vraiment été perdue
+			    				again = verifierPerteConnexion();
+						}
 					}
-				}
-				rt_mutex_release(&mutexRobot);
-                    		break;
-                    		
-                    	case MISSION_TYPE_REACH_COORDINATE :
-                    		//assignement d'une mission
-                    		rt_mutex_acquire(&mutexEtatMission, TM_INFINITE);
-                    		//on vérifie si une mission est déjà en cours
-                    		if (etatMission == NONE) {
-                    			//aucune mission n'est en cours
-                    			//on assigne la nouvelle mission
-                    			etatMission = PENDING;
-                    			rt_mutex_release(&mutexEtatMission);
-                    			rt_mutex_acquire(&mutexMission, TM_INFINITE);
-                    			mission = missionLocal;
-                    			rt_mutex_release(&mutexMission);
-                    			rt_sem_v(&semEffectuerMission);
-                    		} else {
-                    			//une mission est déjà en cours
-                    			//pour l'instant on ne prend pas en compte l'ordre de mission reçu
-                    			//TODO ranger l'ordre de mission dans une liste de missions en attente
-                    			rt_mutex_release(&mutexEtatMission);
-                    			missionLocal->free(missionLocal);
-                    		}
-                    		break;
-                    	default :
-                    		rt_printf("erreur, type %d non traité\n", missionLocal->type);
-                    		break;
-                    };
-                    break;
-                default:
-                    rt_printf("ERREUR tserver : Le message recu %d a un type indefini\n", num_msg);
-                    break;
-            }
-        }
-    }
-}
+					rt_mutex_release(&mutexRobot);
+			    		break;
+			    		
+			    	case MISSION_TYPE_REACH_COORDINATE :
+			    		//assignement d'une mission
+			    		rt_mutex_acquire(&mutexEtatMission, TM_INFINITE);
+			    		//on vérifie si une mission est déjà en cours
+			    		if (etatMission == NONE) {
+			    			//aucune mission n'est en cours
+			    			//on assigne la nouvelle mission
+			    			etatMission = PENDING;
+			    			rt_mutex_release(&mutexEtatMission);
+			    			rt_mutex_acquire(&mutexMission, TM_INFINITE);
+			    			mission = missionLocal;
+			    			rt_mutex_release(&mutexMission);
+			    			rt_sem_v(&semEffectuerMission);
+			    		} else {
+			    			//une mission est déjà en cours
+			    			//pour l'instant on ne prend pas en compte l'ordre de mission reçu
+			    			//TODO ranger l'ordre de mission dans une liste de missions en attente
+			    			rt_mutex_release(&mutexEtatMission);
+			    			missionLocal->free(missionLocal);
+			    		}
+			    		break;
+			    	default :
+			    		rt_printf("erreur, type %d non traité\n", missionLocal->type);
+			    		break;
+			    };
+			    break;
+			default:
+			    rt_printf("ERREUR tserver : Le message recu %d a un type indefini\n", num_msg);
+			    break;
+		    }
+		}
+	    }
+	}
 
 
 void etat_batterie(void *arg) {
@@ -447,6 +458,7 @@ void mission_reach_coordinates(void * arg) {
 
 	DPosition * destination = d_new_position();
 	DMessage * msg;
+	DPosition positionLocale;
 	float x_robot, y_robot, x_destination, y_destination, dx, dy, distance, angle, h_arene, w_arene;
 	etats_mission etatMissionLocal = START;
 	int busy, again, sens;
@@ -474,8 +486,8 @@ void mission_reach_coordinates(void * arg) {
 					y_destination = d_position_get_y(destination);
 					//vérifier que la destination est bien dans l'arène
 					rt_mutex_acquire(&mutexArene, TM_INFINITE);
-					h_arene = arene -> d_arena_get_height();
-					w_arene = arene -> d_arena_get_width();
+					h_arene = arene -> get_height(arene);
+					w_arene = arene -> get_width(arene);
 					if (0 <= x_destination && x_destination <= w_arene
 					    && 0 <= y_destination && y_destination <= h_arene) {
 					    	//la destination est bien dans l'arene
@@ -502,9 +514,10 @@ void mission_reach_coordinates(void * arg) {
 				case PENDING : //mission en cours à effectuer
 					//récupération de la position
 					rt_mutex_acquire(&mutexPosition,TM_INFINITE);
-					x_robot = d_position_get_x(position);
-					y_robot = d_position_get_y(position);
+					positionLocale = *position;
 					rt_mutex_release(&mutexPosition);
+					x_robot = d_position_get_x(&positionLocale);
+					y_robot = d_position_get_y(&positionLocale);
 				
 					//on vérifie si le robot est arrivé à destination
 					dx = x_robot - x_destination;
