@@ -447,33 +447,48 @@ void deplacer(void *arg) {
 }
 
 void watchdog(void * arg) {
-	int status;
-	int watchdogExpired = 0;
+	int status, again = 1;
+	int reloadWatchdog = 1;
 	rt_printf("\n\n\n\nWATCHDOG STARTED\n\n\n\n");
 	rt_task_set_periodic(NULL, TM_NOW, 1000000000); // 1s
 	
-	while(!watchdogExpired){
-	
-		rt_task_wait_period(NULL);
+	while(1) {
 		rt_sem_p(&semWatchdog, TM_INFINITE);
+		reloadWatchdog = 1;
 		
-		rt_mutex_acquire(&mutexEtat, TM_INFINITE);
-		status = etatCommRobot;
-		rt_mutex_release(&mutexEtat);
+		while(reloadWatchdog){
+			rt_task_wait_period(NULL);
+			rt_mutex_acquire(&mutexEtat, TM_INFINITE);
+			status = etatCommRobot;
+			rt_mutex_release(&mutexEtat);
 		
-		if(status == STATUS_OK){
-			rt_printf("tWatchdog : Reload\n");
-			rt_mutex_acquire(&mutexRobot, TM_INFINITE);
-			status=robot->reload_wdt(robot);
-			rt_mutex_release(&mutexRobot);
-		}
-		else {
-			watchdogExpired = 1;
-			rt_task_set_periodic(NULL, TM_NOW, TM_INFINITE); 
+			if(status == STATUS_OK){
+				rt_printf("tWatchdog : Reload\n");
+				rt_mutex_acquire(&mutexRobot, TM_INFINITE);
+				
+				while (again) {
+					if ( (status = robot->reload_wdt(robot)) == STATUS_OK) {
+						//réception du message par le robot ok
+						again = 0;
+						rt_mutex_acquire(&mutexEtat, TM_INFINITE);
+						etatCommRobot = status;
+						rt_mutex_release(&mutexEtat);
+						//on remet à zéro le nombre d'échecs consécutifs
+						tentatives = 0;               
+					} else {
+						//pb de réception du message par le robot
+						//on vérifie si la connexion avec le robot a vraiment été perdue
+						again = verifierPerteConnexion();
+					}
+				}
+				rt_mutex_release(&mutexRobot);
+			} else {
+				reloadWatchdog = 0;
+				rt_task_set_periodic(NULL, TM_NOW, TM_INFINITE); 
+			}
 		}
 	}
 }
-
 void mission_reach_coordinates(void * arg) {
 
 	DPosition * destination = d_new_position();
@@ -675,6 +690,7 @@ void mission_reach_coordinates(void * arg) {
 					etatMission = NONE;
 					rt_mutex_release(&mutexEtatMission);
 					break;
+				default : rt_printf("pas de mission en attente\n");
 			}
 		}
 	}
