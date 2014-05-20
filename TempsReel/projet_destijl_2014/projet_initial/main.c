@@ -207,5 +207,5 @@ void deleteTasks() {
     rt_task_delete(&tbatterie);
     rt_task_delete(&tmission);
     rt_task_delete(&tcamera);
-  //  rt_task_delete(&twatchdog);
+    rt_task_delete(&twatchdog);
 }

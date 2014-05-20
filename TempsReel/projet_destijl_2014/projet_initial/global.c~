@@ -42,7 +42,7 @@ RT_QUEUE queueMsgGUI;
 int etatCommMoniteur = 1;
 int etatCommRobot = 1;
 int etatCamera = ACTION_STOP_COMPUTE_POSITION;
-etats_mission etatMission;
+etats_mission etatMission = NONE;
 
 DRobot *robot;
 DMovement *move;
@@ -57,7 +57,7 @@ int MSG_QUEUE_SIZE = 10;
 
 int PRIORITY_TSERVEUR = 30;
 int PRIORITY_TCONNECT = 20;
-int PRIORITY_TMOVE = 10;
+int PRIORITY_TMOVE = 30;
 int PRIORITY_TENVOYER = 25;   // Pour éviter les segfaults, il faut que la priorité de tenvoyer soit supérieure à toutes celles des fonctions qui utilisent un write in queue
 int PRIORITY_TBATTERIE = 5; 
 int PRIORITY_TMISSION = 50;

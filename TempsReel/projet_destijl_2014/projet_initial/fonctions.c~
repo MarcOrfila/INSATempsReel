@@ -89,6 +89,7 @@ void camera (void * arg){
 					jpegimg->free(jpegimg);
 					image->free(image);
 					
+
 					break;
 				
 				
@@ -289,11 +290,12 @@ void connecter(void * arg) {
         
 		// Recuperation de l'etat de la communication
         rt_mutex_acquire(&mutexEtat, TM_INFINITE);
-        etatCommRobot = status;
+        //etatCommRobot = status;
+        status = etatCommRobot;
         rt_mutex_release(&mutexEtat);
         
         // Si la connexion n'est pas encore faite, on la fait
-        if (status != STATUS_OK){
+        if ((status != STATUS_OK) && (status != STATUS_ERR_CHECKSUM)){
         	// Instruction de controle
         	rt_printf("-------------------- TENTATIVE OUVERTURE ROBOT THREAD CONNECTER -------------------- \n");
         	
@@ -303,7 +305,7 @@ void connecter(void * arg) {
         	rt_mutex_release(&mutexRobot);
         	
         	// Si l'ouverture a été faite, on démarre le robot
-        	if (status == STATUS_OK){
+        	if ((status == STATUS_OK) || (status == STATUS_ERR_CHECKSUM)){
         		// Instruction de controle
         		rt_printf("-------------------- TENTATIVE DEMARRAGE ROBOT THREAD CONNECTER -------------------- \n");
         		do
@@ -311,12 +313,11 @@ void connecter(void * arg) {
         		// Demarrage du robot
 		    		rt_mutex_acquire(&mutexRobot, TM_INFINITE);
 		    		status = robot -> start_insecurely(robot);
-		    		rt_printf("COUCOUCOUCOUCOUCOUCOU\n\n");
 		    		rt_mutex_release(&mutexRobot);
         		}
-        		while(status != STATUS_OK);
+        		while ((status != STATUS_OK) && (status != STATUS_ERR_CHECKSUM));
         		// Si le robot a démarré, on le renseigne a etatCommRobot et on lance le watchdog
-        		if (status == STATUS_OK){
+        		if ((status == STATUS_OK) || (status == STATUS_ERR_CHECKSUM)){
         			// Instruction de controle
         			rt_printf("-------------------- SUCCES DEMARRAGE ROBOT THREAD CONNECTER -------------------- \n");
         			
@@ -326,12 +327,15 @@ void connecter(void * arg) {
         			rt_mutex_release(&mutexEtat);
         			
         			// Lancement du watchdog
-        			//rt_sem_v(&semWatchdog);
+        			rt_sem_v(&semWatchdog);
         		}
         		// Si ce status n'est pas OK, c'est le démarrage du robot qui a echoué 
         		else {
         			// Instruction de controle 
         			rt_printf("-------------------- ECHEC DEMARRAGE ROBOT THREAD CONNECTER -------------------- \n");
+        			rt_mutex_acquire(&mutexEtat, TM_INFINITE);
+        			etatCommRobot = status;
+        			rt_mutex_release(&mutexEtat);
 				
 					
 // Arret du robot et fermeture de la communication 
@@ -703,7 +707,7 @@ void etat_batterie(void *arg) {
         status=etatCommRobot;
         rt_mutex_release(&mutexEtat);
 	
-	if (status == STATUS_OK) {
+	if (status == STATUS_OK){
 	    rt_mutex_acquire(&mutexRobot, TM_INFINITE);
 	    status = robot->get_vbat(robot, &niveau);   // Renvoie 0, 1 ou 2 (= etat de la batterie)
 	    rt_mutex_release(&mutexRobot);
@@ -802,7 +806,7 @@ void deplacer(void *arg) {
             rt_mutex_acquire(&mutexRobot , TM_INFINITE);
             status = robot->set_motors(robot, gauche, droite);
 			rt_mutex_release(&mutexRobot);
-            if (status != STATUS_OK) {
+            if (status != STATUS_OK){
                 rt_mutex_acquire(&mutexEtat, TM_INFINITE);
                 etatCommRobot = status;
                 rt_mutex_release(&mutexEtat);
@@ -811,7 +815,7 @@ void deplacer(void *arg) {
                 message->put_state(message, status);
 
                 rt_printf("tmove : Envoi message\n");
-                if (write_in_queue(&queueMsgGUI, message, sizeof (DMessage)) < 0) {
+                while (write_in_queue(&queueMsgGUI, message, sizeof (DMessage)) < 0) {
                     message->free(message);
                 }
             }
@@ -845,25 +849,44 @@ void watchdog(void * arg) {
 			rt_mutex_release(&mutexEtat);
 		
 			// Si la communication est toujours opérationnelle, on reload le watchdog du robot
-			if (status == STATUS_OK){
+			if ((status == STATUS_OK) || (status == STATUS_ERR_CHECKSUM)){
 				rt_task_wait_period(NULL);
 				//TODO status=checksum;
 				rt_mutex_acquire(&mutexRobot, TM_INFINITE);
 				status = robot -> reload_wdt(robot);
+				rt_printf("\n\n\n\n\nRELOAD WATCHDOG : status : %d \n\n\n\n\n\n", status);
 				rt_mutex_release(&mutexRobot);
 			
 				// Si le reload n'a pas fonctionné, on vérifie la perte de connexion
-				if (status != STATUS_OK){
-					verifierPerteConnexion();
+				if ((status != STATUS_OK) || (status != STATUS_ERR_CHECKSUM)){
+					connectionRobotOk = verifierPerteConnexion();
+				}
+				else{
+					tentatives = 0;
 				}
 			}
 			// Si la communication n'est plus opérationnelle, on sort de la boucle while
 			else{
-				connectionRobotOk = 0;
+				rt_printf("\n\nPERTE DE CONNEXION!!!!\n\n");
+				if ((status != STATUS_OK) || (status != STATUS_ERR_CHECKSUM)){
+					connectionRobotOk = verifierPerteConnexion();
+					if(!connectionRobotOk){
+						rt_mutex_acquire(&mutexEtat,TM_INFINITE);
+						etatCommRobot = 1;
+						rt_mutex_release(&mutexEtat);
+					}
+				}
+				else{
+					tentatives = 0;
+				}
+				
+				/*connectionRobotOk = 0;
 				rt_mutex_acquire(&mutexEtat, TM_INFINITE);
 				etatCommRobot = 1;
 				rt_mutex_release(&mutexEtat);
-				rt_task_set_periodic(NULL,TM_NOW, TM_INFINITE);
+				rt_sem_v(&semConnecterRobot);
+				//rt_task_set_periodic(NULL,TM_NOW, TM_INFINITE);*/
+				
 			}
 		}
 	}
@@ -1142,6 +1165,7 @@ int verifierPerteConnexion() {
 		rt_task_delete(&tcamera);
 		rt_printf("PLUS DE 3 PERTES DE CONNEXION : SHUTDOWN ! \n"); 
 		return 0; } 
+	rt_sem_v(&semConnecterRobot);
 	return 1; 
 }
 
