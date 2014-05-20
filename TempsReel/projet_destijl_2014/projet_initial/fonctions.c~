@@ -63,10 +63,8 @@ void camera (void * arg){
 					
 					// Création d'une nouvelle image
 					image = d_new_image();
-					
 					// Capture de l'image via la caméra
 					camera -> get_frame(camera , image);
-
 					// Création d'une image de format compressé (compression JPEG)
 					jpegimg = d_new_jpegimage();
 					
@@ -96,7 +94,6 @@ void camera (void * arg){
 				
 				// Si on demande le calcul de la position (fonctionnement usuel), on fait la même routine, plus le calcul de la position
 				case ACTION_COMPUTE_CONTINUOUSLY_POSITION : 
-				
 					// Instruction de contrôle (visible sur terminal) 
 					rt_printf("-------------------- RECUPERATION IMAGE AVEC CALCUL DE POSITION THREAD CAMERA -------------------- \n");
 					
@@ -104,14 +101,12 @@ void camera (void * arg){
 					image = d_new_image();
 					
 					// Capture de l'image via la caméra
-					camera -> get_frame(camera , image);
-					
+					camera -> get_frame(camera , image);					
 					//Récupération de la position
-					rt_mutex_acquire(&mutexPosition, TM_INFINITE);
-					rt_mutex_acquire(&mutexArene, TM_INFINITE);
-					position = image->compute_robot_position(image, arene);
-					rt_mutex_release(&mutexArene);
-					
+					rt_mutex_acquire(&mutexPosition, TM_INFINITE);					
+					rt_mutex_acquire(&mutexArene, TM_INFINITE);					
+					position = image->compute_robot_position(image, arene);					
+					rt_mutex_release(&mutexArene);					
 					if (position != NULL){
 						// Si une position est effectivement calculée, on la dessine sur l'image
 						d_imageshop_draw_position(image,position);
@@ -262,10 +257,10 @@ void envoyer(void * arg) {
 			rt_mutex_release(&mutexEtat);
 			
 			if (status == STATUS_OK){	
-				rt_mutex_acquire(&mutexServeur, TM_INFINITE);
+				//rt_mutex_acquire(&mutexServeur, TM_INFINITE);			
 				size = serveur-> send(serveur, msg);		//envoi du message
-				rt_mutex_release(&mutexServeur);
-									
+				//rt_mutex_release(&mutexServeur);
+				rt_printf("								APRES\n");									
 				if (size <= 0){	//= communication perdue
 					connexionMoniteurPerdue();					
 				}
@@ -280,7 +275,8 @@ void envoyer(void * arg) {
 }
 
 void connecter(void * arg) {
-    int status;
+    // status initial de la communication : != STATUS_OK
+    int status = 1;
     DMessage *message;
 
     rt_printf("tconnect : Debut de l'exécution de tconnect\n");
@@ -289,14 +285,14 @@ void connecter(void * arg) {
         
         // Attente connection robot
         rt_printf("tconnect : Attente du sémaphore semConnecterRobot\n");
-        rt_sem_p(&semConnecterRobot, TM_INFINITE);
+     	rt_sem_p(&semConnecterRobot, TM_INFINITE);
         
 		// Recuperation de l'etat de la communication
         rt_mutex_acquire(&mutexEtat, TM_INFINITE);
         etatCommRobot = status;
         rt_mutex_release(&mutexEtat);
         
-        // Si la connection n'est pas encore faite, on la fait
+        // Si la connexion n'est pas encore faite, on la fait
         if (status != STATUS_OK){
         	// Instruction de controle
         	rt_printf("-------------------- TENTATIVE OUVERTURE ROBOT THREAD CONNECTER -------------------- \n");
@@ -339,6 +335,8 @@ void connecter(void * arg) {
 					robot -> stop(robot);
 					robot -> close_com(robot);
 					rt_mutex_release(&mutexRobot);
+//					status = 1;
+
 				}
 			}
 			// Si ce status n'est pas OK, c'est l'ouverture du robot qui a echoué
@@ -350,6 +348,8 @@ void connecter(void * arg) {
 				rt_mutex_acquire(&mutexRobot, TM_INFINITE);
 				robot -> close_com(robot);
 				rt_mutex_release(&mutexRobot);
+//				status = 1;
+
 			}
 			
 			// Création et envoi d'un message renseignant l'état de la communication
@@ -376,44 +376,11 @@ void communiquer(void *arg) {
 	
 	rt_printf("tserver : Début de l'exécution de serveur\n");
 	
-	
 	while(1){
 		// Ouverture du serveur
 		rt_mutex_acquire(&mutexServeur, TM_INFINITE);
     	status = serveur->open(serveur, "8000");
     	rt_mutex_release(&mutexServeur);
-    	
-    	/* Initialisation des variables */
-    	
-    	// Variable représentant le nombre de tentatives de connection  
-    	rt_mutex_acquire(&mutexErreur, TM_INFINITE);
-    	tentatives = 0;
-    	rt_mutex_release(&mutexErreur);
-    	
-    	// Variable représentant le mouvement du robot
-    	rt_mutex_acquire(&mutexMove, TM_INFINITE);
-    	move->set(move,0,0);
-    	rt_mutex_release(&mutexMove);
-    	
-    	// Variable représentant l'état de la caméra 
-    	rt_mutex_acquire(&mutexCam, TM_INFINITE);
-    	etatCamera = ACTION_STOP_COMPUTE_POSITION;
-    	rt_mutex_release(&mutexCam);
-    	
-    	// Variable représentant la position du robot
-    	rt_mutex_acquire(&mutexPosition, TM_INFINITE);
-    	position = NULL;
-    	rt_mutex_release(&mutexPosition);
-    	
-    	// Variable représentant l'arène
-    	rt_mutex_acquire(&mutexArene, TM_INFINITE);
-    	arene = NULL;
-    	rt_mutex_release(&mutexArene);
-    	
-    	// Vartiable représentant l'état de la mission 
-    	rt_mutex_acquire(&mutexEtatMission, TM_INFINITE);
-    	etatMission = TERMINATED;
-    	rt_mutex_release(&mutexEtatMission);
     	
     	// Si le status est nul, l'ouverture du serveur a fonctionné
     	if (status == 0){
@@ -423,13 +390,14 @@ void communiquer(void *arg) {
     		// MaJ de l'état de la communication avec le moniteur 
     		rt_mutex_acquire(&mutexEtat, TM_INFINITE);
     		etatCommMoniteur = STATUS_OK;
-    		rt_mutex_release;
+    		rt_mutex_release(&mutexEtat);
     		
     		// Tant que la taille des messages reçus est positive, on effectue la routine de communication
     		while (byteSize > 0){
     			// La nouvelle taille du message reçu est actualisée, et le serveur reçoit un message
+    			rt_mutex_acquire(&mutexServeur, TM_INFINITE);		
     			byteSize = serveur -> receive(serveur, msg);
-    			
+    			rt_mutex_release(&mutexServeur);
     			// Nouveau message reçu 
     			num_msg++;
     			
@@ -469,7 +437,7 @@ void communiquer(void *arg) {
 						            rt_printf("tserver : Action arene trouvée\n");
 						            // MaJ de etatCamera
 			           				rt_mutex_acquire(&mutexCam, TM_INFINITE);
-			           				etatCamera = ACTION_ARENA_FAILED;
+			           				etatCamera = ACTION_ARENA_IS_FOUND;
 			            			rt_mutex_release(&mutexCam);
 			            			break;
 			            		// Si on souhaite calculer continuellement la position du robot		
@@ -534,10 +502,10 @@ void communiquer(void *arg) {
     		rt_printf("tserveur : Erreur ouverture serveur \n");
     	}
     }
-}  						
+}  					
 	
-/*	
-	do {
+	
+/*	do {
 		rt_mutex_acquire(&mutexServeur, TM_INFINITE);
     		status = serveur->open(serveur, "8000");
     		rt_mutex_release(&mutexServeur);
@@ -680,9 +648,9 @@ void communiquer(void *arg) {
 		    }
 		}
 	    }
-	}
+	}*/
 
-*/
+
 void etat_batterie(void *arg) {
     int niveau = -1;  
     int status ;  
@@ -710,7 +678,7 @@ void etat_batterie(void *arg) {
 	    status = robot->get_vbat(robot, &niveau);   // Renvoie 0, 1 ou 2 (= etat de la batterie)
 	    rt_mutex_release(&mutexRobot);
 	    
-	    rt_mutex_acquire(&mutexEtat, TM_INFINITE);
+		rt_mutex_acquire(&mutexEtat, TM_INFINITE);
         etatCommRobot = status;
         rt_mutex_release(&mutexEtat);
 	    
@@ -864,8 +832,7 @@ void watchdog(void * arg) {
 			}
 		}
 	}
-}
-			
+}	
 
 void mission_reach_coordinates(void * arg) {
 
@@ -1110,9 +1077,9 @@ void connexionMoniteurPerdue(){
 					
 	
 	// Fermeture du serveur
-	rt_mutex_acquire(&mutexServeur, TM_INFINITE);
+	/*rt_mutex_acquire(&mutexServeur, TM_INFINITE);
 	serveur->close(serveur);		
-	rt_mutex_release(&mutexServeur);
+	rt_mutex_release(&mutexServeur);*/
 }
 
 int verifierPerteConnexion() { 
@@ -1124,7 +1091,11 @@ int verifierPerteConnexion() {
 		rt_task_delete(&tbatterie); 
 		rt_task_delete(&tconnect); 
 		rt_task_delete(&tmove); 
-		rt_task_delete(&twatchdog); 
+		rt_task_delete(&twatchdog);
+		rt_task_delete(&tServeur);
+		rt_task_delete(&tenvoyer);
+		rt_task_delete(&tcamera);
+		rt_printf("PLUS DE 3 PERTES DE CONNEXION : SHUTDOWN ! \n"); 
 		return 0; } 
 	return 1; 
 }

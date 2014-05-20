@@ -191,7 +191,7 @@ int d_server_receive(DServer *This, DMessage *message) {
             pData = (char *) malloc(size);
             retour = recv(This->socketID, pData, size, 0);
             if (retour > 0) {
-                //message = d_new_message();
+                message = d_new_message();
                 message->set(message, type, size, pData);
             }
         }

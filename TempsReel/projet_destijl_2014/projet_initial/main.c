@@ -44,7 +44,7 @@ int main(int argc, char**argv) {
     rt_print_auto_init(1);
     initStruct();
     startTasks();
-    pause();
+	pause();
     deleteTasks();
 
     return 0;
@@ -104,12 +104,13 @@ void initStruct(void) {
         rt_printf("Error semaphore create: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
     }
-    /*if (err = rt_sem_create(&semWatchdog, NULL, 0, S_FIFO)) {
+    if (err = rt_sem_create(&semWatchdog, NULL, 0, S_FIFO)) {
         rt_printf("Error semaphore create: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
-    }*/
+    }
 
-    /* Creation des taches */
+    /* Creation des taches tenvoyer : envoi d'un message au moniteur
+*/
     if (err = rt_task_create(&tServeur, NULL, 0, PRIORITY_TSERVEUR, 0)) {
         rt_printf("Error task create: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
@@ -154,6 +155,8 @@ void initStruct(void) {
     move = d_new_movement();
     serveur = d_new_server();
     mission = d_new_mission();
+    position = d_new_position();
+    arene = d_new_arena();
 }
 
 void startTasks() {
@@ -178,10 +181,10 @@ void startTasks() {
         rt_printf("Error task start: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
     }
-   /* if (err = rt_task_start(&twatchdog, &watchdog, NULL)) {
+   	if (err = rt_task_start(&twatchdog, &watchdog, NULL)) {
         rt_printf("Error task start: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
-    }*/
+    }
     if (err = rt_task_start(&tmission, &mission_reach_coordinates, NULL)) {
         rt_printf("Error task start: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
@@ -200,5 +203,5 @@ void deleteTasks() {
     rt_task_delete(&tbatterie);
     rt_task_delete(&tmission);
     rt_task_delete(&tcamera);
-    //rt_task_delete(&twatchdog);
+    rt_task_delete(&twatchdog);
 }
