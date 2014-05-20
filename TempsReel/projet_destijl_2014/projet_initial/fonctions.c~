@@ -257,10 +257,10 @@ void envoyer(void * arg) {
 			rt_mutex_release(&mutexEtat);
 			
 			if (status == STATUS_OK){	
-				//rt_mutex_acquire(&mutexServeur, TM_INFINITE);			
+				rt_mutex_acquire(&mutexServeur, TM_INFINITE);
+				rt_printf("tenvoyer : On va envoyer un message de type %c \n", msg->get_type(msg));			
 				size = serveur-> send(serveur, msg);		//envoi du message
-				//rt_mutex_release(&mutexServeur);
-				rt_printf("								APRES\n");									
+				rt_mutex_release(&mutexServeur);									
 				if (size <= 0){	//= communication perdue
 					connexionMoniteurPerdue();					
 				}
@@ -306,12 +306,15 @@ void connecter(void * arg) {
         	if (status == STATUS_OK){
         		// Instruction de controle
         		rt_printf("-------------------- TENTATIVE DEMARRAGE ROBOT THREAD CONNECTER -------------------- \n");
-        		
+        		do
+        		{
         		// Demarrage du robot
-        		rt_mutex_acquire(&mutexRobot, TM_INFINITE);
-        		status = robot -> start(robot);
-        		rt_mutex_release(&mutexRobot);
-        		
+		    		rt_mutex_acquire(&mutexRobot, TM_INFINITE);
+		    		status = robot -> start_insecurely(robot);
+		    		rt_printf("COUCOUCOUCOUCOUCOUCOU\n\n");
+		    		rt_mutex_release(&mutexRobot);
+        		}
+        		while(status != STATUS_OK);
         		// Si le robot a démarré, on le renseigne a etatCommRobot et on lance le watchdog
         		if (status == STATUS_OK){
         			// Instruction de controle
@@ -323,14 +326,15 @@ void connecter(void * arg) {
         			rt_mutex_release(&mutexEtat);
         			
         			// Lancement du watchdog
-        			rt_sem_v(&semWatchdog);
+        			//rt_sem_v(&semWatchdog);
         		}
         		// Si ce status n'est pas OK, c'est le démarrage du robot qui a echoué 
         		else {
         			// Instruction de controle 
         			rt_printf("-------------------- ECHEC DEMARRAGE ROBOT THREAD CONNECTER -------------------- \n");
 				
-					// Arret du robot et fermeture de la communication 
+					
+// Arret du robot et fermeture de la communication 
 					rt_mutex_acquire(&mutexRobot, TM_INFINITE);
 					robot -> stop(robot);
 					robot -> close_com(robot);
@@ -368,7 +372,7 @@ void connecter(void * arg) {
 			
 void communiquer(void *arg) {
 	DMessage *msg = d_new_message();
-	DMission * missionLocal;
+	DMission * missionLocal = d_new_mission();
 	int byteSize = 1;   // Var qui represente le nombre d'octets recus
 	int num_msg = 0;
 	//représente l'état occupé ou non du robot
@@ -382,7 +386,7 @@ void communiquer(void *arg) {
     	status = serveur->open(serveur, "8000");
     	rt_mutex_release(&mutexServeur);
     	
-    	// Si le status est nul, l'ouverture du serveur a fonctionné
+    	// Si le statAborted (core dumped)
     	if (status == 0){
     		// Instruction de controle 
     		rt_printf("-------------------- SERVEUR OUVERT THREAD COMMUNIQUER -------------------- \n");
@@ -395,15 +399,16 @@ void communiquer(void *arg) {
     		// Tant que la taille des messages reçus est positive, on effectue la routine de communication
     		while (byteSize > 0){
     			// La nouvelle taille du message reçu est actualisée, et le serveur reçoit un message
-    			rt_mutex_acquire(&mutexServeur, TM_INFINITE);		
+//    			rt_mutex_acquire(&mutexServeur, TM_INFINITE);		
     			byteSize = serveur -> receive(serveur, msg);
-    			rt_mutex_release(&mutexServeur);
+//    			rt_mutex_release(&mutexServeur);
     			// Nouveau message reçu 
     			num_msg++;
     			
     			// Si la taille du nouveau message est positive
     			if (byteSize > 0){  				
     				// En fonction du message, on effectue le traitement approprié
+    				rt_printf("TYPE MESSAGE RECU: %c\n", msg-> get_type(msg));
     				switch(msg-> get_type(msg)){
     					// Si action, on crée nouvelle action, et en fonction de celle-ci, traitement approprié
     					case MESSAGE_TYPE_ACTION : 
@@ -438,7 +443,7 @@ void communiquer(void *arg) {
 						            // MaJ de etatCamera
 			           				rt_mutex_acquire(&mutexCam, TM_INFINITE);
 			           				etatCamera = ACTION_ARENA_IS_FOUND;
-			            			rt_mutex_release(&mutexCam);
+		            			rt_mutex_release(&mutexCam);
 			            			break;
 			            		// Si on souhaite calculer continuellement la position du robot		
 								case ACTION_COMPUTE_CONTINUOUSLY_POSITION:
@@ -464,18 +469,43 @@ void communiquer(void *arg) {
     						move->from_message(move, msg);
     						rt_mutex_release(&mutexMove);
     						break;
-    					case MESSAGE_TYPE_MISSION : 
+    					case MESSAGE_TYPE_MISSION :
+    						rt_printf("Test 1\n"); 
     						missionLocal -> from_message(missionLocal, msg);
+    						rt_printf("Test 2\n");
     						switch (missionLocal->type){
     							case MISSION_TYPE_REACH_COORDINATE : 
-    								rt_mutex_acquire(&mutexEtatMission, TM_INFINITE);
-    								etatMission = START;
-    								rt_mutex_release(&mutexEtatMission);
-    								break;
-    							case MISSION_TYPE_STOP : 
+    								//assignement d'une mission
+			    		rt_mutex_acquire(&mutexEtatMission, TM_INFINITE);
+			    		//on vérifie si une mission est déjà en cours
+			    		rt_printf("Test 3\n");
+			    		if (etatMission == NONE) {
+			    			//aucune mission n'est en cours
+			    			//on assigne la nouvelle mission
+			    			rt_printf("Test 4\n");
+			    			etatMission = START;
+			    			rt_mutex_release(&mutexEtatMission);
+			    			rt_mutex_acquire(&mutexMission, TM_INFINITE);
+			    			rt_printf("AVANT SEFGFAULT?\n");
+			    			mission = missionLocal;
+			    			rt_printf("APRES SEFGFAULT?\n");
+			    			rt_mutex_release(&mutexMission);
+			    			rt_sem_v(&semEffectuerMission);
+			    		} else {
+			    			//une mission est déjà en cours
+			    			//pour l'instant on ne prend pas en compte l'ordre de mission reçu
+			    			//TODO ranger l'ordre de mission dans une liste de missions en attente
+			    			rt_printf("Test 5\n");
+			    			rt_mutex_release(&mutexEtatMission);
+			    			missionLocal->free(missionLocal);
+			    		}
+			    		break;
+    							case MISSION_TYPE_STOP :
+    								rt_printf("Test 6\n"); 
     								rt_mutex_acquire(&mutexEtatMission, TM_INFINITE);
     								etatMission = TERMINATED;
     								rt_mutex_release(&mutexEtatMission);
+    								rt_printf("Test 7\n");
     								break;
     						}
     						break;
@@ -486,10 +516,10 @@ void communiquer(void *arg) {
     				rt_printf("tserver : taille du message reçu <0 \n");
     				
     				// MaJ de etatCommMoniteur
-    				rt_mutex_acquire(&mutexEtat, TM_INFINITE);
+    				rt_mutex_acquire(&mutexEtatMoniteur, TM_INFINITE);
     				etatCommMoniteur = 1;
-    				rt_mutex_release(&mutexEtat);
-    				
+    				rt_mutex_release(&mutexEtatMoniteur);
+    				rt_printf("Test 8\n");
     				// Fermeture du serveur
     				rt_mutex_acquire(&mutexServeur, TM_INFINITE);
     				serveur->close(serveur);
@@ -817,6 +847,7 @@ void watchdog(void * arg) {
 			// Si la communication est toujours opérationnelle, on reload le watchdog du robot
 			if (status == STATUS_OK){
 				rt_task_wait_period(NULL);
+				//TODO status=checksum;
 				rt_mutex_acquire(&mutexRobot, TM_INFINITE);
 				status = robot -> reload_wdt(robot);
 				rt_mutex_release(&mutexRobot);
@@ -829,6 +860,10 @@ void watchdog(void * arg) {
 			// Si la communication n'est plus opérationnelle, on sort de la boucle while
 			else{
 				connectionRobotOk = 0;
+				rt_mutex_acquire(&mutexEtat, TM_INFINITE);
+				etatCommRobot = 1;
+				rt_mutex_release(&mutexEtat);
+				rt_task_set_periodic(NULL,TM_NOW, TM_INFINITE);
 			}
 		}
 	}
@@ -842,14 +877,16 @@ void mission_reach_coordinates(void * arg) {
 	float x_robot, y_robot, x_destination, y_destination, dx, dy, distance, angle, h_arene, w_arene;
 	etats_mission etatMissionLocal = START;
 	int busy, again, sens;
-	
+	rt_printf("Test 10\n");
 	while(1) {
+		rt_printf("Test 11\n");
 		//attente d'une mission
 		rt_printf("tmission : Attente du sémaphore semEffectuerMission\n");
 		rt_sem_p(&semEffectuerMission, TM_INFINITE);
 		etatMissionLocal = START;
-		
+		rt_printf("Test 12\n");
 		while (etatMissionLocal != NONE) {
+		rt_printf("Test 13\n");
 			//récupération de l'état de la mission
 			rt_mutex_acquire(&mutexEtatMission, TM_INFINITE);
 			etatMissionLocal = etatMission;
@@ -857,11 +894,14 @@ void mission_reach_coordinates(void * arg) {
 		
 			switch(etatMissionLocal) {
 		
-				case START : //début de la mission
+				case 
+				START : //début de la mission
 					//récupération de la destination
+					rt_printf("Test 14\n");
 					rt_mutex_acquire(&mutexMission, TM_INFINITE);
 					d_mission_get_position(mission, destination);
 					rt_mutex_release(&mutexMission);
+					rt_printf("Test 15\n");
 					x_destination = d_position_get_x(destination);
 					y_destination = d_position_get_y(destination);
 					//vérifier que la destination est bien dans l'arène
@@ -869,8 +909,10 @@ void mission_reach_coordinates(void * arg) {
 					h_arene = arene -> get_height(arene);
 					w_arene = arene -> get_width(arene);
 					rt_mutex_release(&mutexArene);
+					rt_printf("Test 15\n");
 					if (0 <= x_destination && x_destination <= w_arene
 					    && 0 <= y_destination && y_destination <= h_arene) {
+					    rt_printf("Test 16\n");
 					    	//la destination est bien dans l'arene
 					    	//mettre la caméra dans un état de calcul de position du robot
 						rt_mutex_acquire(&mutexCam, TM_INFINITE);
@@ -879,10 +921,12 @@ void mission_reach_coordinates(void * arg) {
 					
 					    	//on change l'état de la mission à PENDING
 					    	rt_mutex_acquire(&mutexEtatMission, TM_INFINITE);
+					    	
 					    	if (etatMission != TERMINATED)
 					    		etatMission = PENDING;
 						rt_mutex_release(&mutexEtatMission);
 					} else {
+						rt_printf("Test 17\n");
 						//la destination n'est pas dans l'arene
 						rt_printf("tmission : erreur, la destination demandé n'est pas dans l'arene\n");
 						//on change l'état de la mission à TERMINATED
@@ -894,6 +938,7 @@ void mission_reach_coordinates(void * arg) {
 				
 				case PENDING : //mission en cours à effectuer
 					//récupération de la position
+					rt_printf("Test 18\n");
 					rt_mutex_acquire(&mutexPosition,TM_INFINITE);
 					positionLocale = *position;
 					rt_mutex_release(&mutexPosition);
@@ -903,7 +948,7 @@ void mission_reach_coordinates(void * arg) {
 					//on vérifie si le robot est arrivé à destination
 					dx = x_robot - x_destination;
 					dy = y_robot - y_destination;
-		
+			rt_printf("Test 19\n");
 					if ((dx == 0) && (dy == 0)) {
 						//mission accomplie
 						//on change l'état de la mission à TERMINATED

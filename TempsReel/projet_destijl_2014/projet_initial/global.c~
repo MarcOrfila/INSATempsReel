@@ -18,6 +18,7 @@ RT_TASK twatchdog;
 RT_TASK tmission;
 
 RT_MUTEX mutexEtat;
+RT_MUTEX mutexEtatMoniteur;
 RT_MUTEX mutexMove;
 RT_MUTEX mutexRobot;
 
@@ -28,7 +29,7 @@ RT_MUTEX mutexPosition;
 RT_MUTEX mutexArene;
 RT_MUTEX mutexMissionData;
 RT_MUTEX mutexMission;
-RT_MUTEX mutexTentatives;
+//RT_MUTEX mutexTentatives;
 RT_MUTEX mutexEtatMission;
 
 RT_SEM semWatchdog;
@@ -48,7 +49,7 @@ DMovement *move;
 DServer *serveur;
 DPosition *position;
 DArena *arene;
-DMission *missionData;
+//DMission *missionData;
 DMission *mission;
 
 int tentatives = 0;
@@ -59,6 +60,6 @@ int PRIORITY_TCONNECT = 20;
 int PRIORITY_TMOVE = 10;
 int PRIORITY_TENVOYER = 25;   // Pour éviter les segfaults, il faut que la priorité de tenvoyer soit supérieure à toutes celles des fonctions qui utilisent un write in queue
 int PRIORITY_TBATTERIE = 5; 
-int PRIORITY_TMISSION = 27;
+int PRIORITY_TMISSION = 50;
 int PRIORITY_TWATCHDOG = 40;
-int PRIORITY_TCAMERA = 29;
+int PRIORITY_TCAMERA = 28;

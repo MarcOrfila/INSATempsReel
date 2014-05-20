@@ -25,6 +25,7 @@ extern RT_TASK twatchdog;
 
 /* @descripteurs des mutex */
 extern RT_MUTEX mutexEtat;
+extern RT_MUTEX mutexEtatMoniteur;
 extern RT_MUTEX mutexMove;
 extern RT_MUTEX mutexRobot;
 extern RT_MUTEX mutexMission;
@@ -34,8 +35,8 @@ extern RT_MUTEX mutexCam;
 extern RT_MUTEX mutexServeur;
 extern RT_MUTEX mutexPosition;
 extern RT_MUTEX mutexArene;
-extern RT_MUTEX mutexMissionData;   /// utilisé ou pas?
-extern RT_MUTEX mutexTentatives;
+//extern RT_MUTEX mutexMissionData;   /// utilisé ou pas?
+//extern RT_MUTEX mutexTentatives;
 extern RT_MUTEX mutexEtatMission;
 
 /* @descripteurs des sempahore */
