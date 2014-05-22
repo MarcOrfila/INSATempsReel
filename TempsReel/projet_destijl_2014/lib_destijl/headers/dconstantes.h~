@@ -228,7 +228,7 @@
 /*! \def STATUS_ERR_CHECKSUM
 \brief Erreur de checksum à la réception
 */
-#define STATUS_ERR_CHECKSUM                     (0)
+#define STATUS_ERR_CHECKSUM                     (7)
 
 /*! \def MOTEUR_STOP
 \brief La vitesse à appliquer au moteur est nulle
