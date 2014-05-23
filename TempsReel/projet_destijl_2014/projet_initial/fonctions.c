@@ -291,12 +291,10 @@ void connecter(void * arg) {
         rt_printf("tconnect : Attente du sémaphore semConnecterRobot\n");
      	rt_sem_p(&semConnecterRobot, TM_INFINITE);
         
-        rt_printf("\n \n\n avant \n\n\n");
 		// Recuperation de l'etat de la communication
         rt_mutex_acquire(&mutexEtat, TM_INFINITE);
         status = etatCommRobot;
         rt_mutex_release(&mutexEtat);
-        rt_printf("\n\n\n après \n\n\n");
         
         // Si la connexion n'est pas encore faite, on la fait
         if ((status != STATUS_OK) && (status != STATUS_ERR_CHECKSUM)){
@@ -914,11 +912,9 @@ void mission_reach_coordinates(void * arg) {
 		
 				case START : //début de la mission
 					//récupération de la destination
-					rt_printf("Test 14\n");
 					rt_mutex_acquire(&mutexMission, TM_INFINITE);
 					d_mission_get_position(mission, destination);
 					rt_mutex_release(&mutexMission);
-					rt_printf("Test 15\n");
 					x_destination = d_position_get_x(destination);
 					y_destination = d_position_get_y(destination);
 					
@@ -935,14 +931,14 @@ void mission_reach_coordinates(void * arg) {
 					
 					//on change l'état de la mission à PENDING
 					rt_mutex_acquire(&mutexEtatMission, TM_INFINITE);
-					if (etatMission != TERMINATED)
+					if (etatMission != TERMINATED){
 						etatMission = PENDING;
+					}
 					rt_mutex_release(&mutexEtatMission);
 					break;
 				
 				case PENDING : //mission en cours à effectuer
 					//récupération de la position
-					rt_printf("Test 18\n");
 					rt_mutex_acquire(&mutexPosition,TM_INFINITE);
 					x_robot = d_position_get_x(position);
 					y_robot = d_position_get_y(position);
@@ -953,7 +949,6 @@ void mission_reach_coordinates(void * arg) {
 					dx = (x_robot - x_destination) * LARGEUR/w_arene;
 					dy = (y_robot - y_destination) * LONGUEUR/h_arene;
 					distance = sqrt(dx*dx + dy*dy);
-					rt_printf("Test 19\n");
 					//on vérifie si le robot est arrivé à destination
 					if (distance <= DELTA_D) {
 						//mission accomplie
@@ -1127,10 +1122,10 @@ int verifierPerteConnexion(int status) {
 	if ((status == STATUS_OK) || (status == STATUS_ERR_CHECKSUM)){
 
 		tentatives = 0; 
-		rt_mutex_release(&mutexErreur);
-		rt_mutex_acquire(&mutexEtat,TM_INFINITE);
-		etatCommRobot = STATUS_OK;
-		rt_mutex_release(&mutexEtat);		
+		//rt_mutex_release(&mutexErreur);
+		//rt_mutex_acquire(&mutexEtat,TM_INFINITE);
+		//etatCommRobot = STATUS_OK;
+		//rt_mutex_release(&mutexEtat);		
 	}
 	else{
 
@@ -1158,7 +1153,7 @@ int verifierPerteConnexion(int status) {
 	}
 	rt_mutex_release(&mutexErreur);
 	rt_mutex_acquire(&mutexEtat,TM_INFINITE);
-	etatCommRobot = 1;
+	etatCommRobot = status;
 	rt_mutex_release(&mutexEtat);
 	rt_sem_v(&semConnecterRobot);
 	return 1; 

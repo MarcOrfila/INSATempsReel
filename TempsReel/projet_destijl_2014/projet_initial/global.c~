@@ -49,7 +49,6 @@ DMovement *move;
 DServer *serveur;
 DPosition *position;
 DArena *arene;
-//DMission *missionData;
 DMission *mission;
 
 int tentatives = 0;
@@ -61,5 +60,5 @@ int PRIORITY_TMOVE = 10;
 int PRIORITY_TENVOYER = 95;   // Pour éviter les segfaults, il faut que la priorité de tenvoyer soit supérieure à toutes celles des fonctions qui utilisent un write in queue
 int PRIORITY_TBATTERIE = 5; 
 int PRIORITY_TMISSION = 30;
-int PRIORITY_TWATCHDOG = 99;
+int PRIORITY_TWATCHDOG = 89;
 int PRIORITY_TCAMERA = 35;
