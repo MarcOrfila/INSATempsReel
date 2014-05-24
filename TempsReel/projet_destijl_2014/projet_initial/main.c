@@ -112,6 +112,11 @@ void initStruct(void) {
         rt_printf("Error semaphore create: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
     }
+    
+    if (err = rt_sem_create(&semDeplacer, NULL, 0, S_FIFO)) {
+    	rt_printf("Error semaphore create: %s\n", strerror(-err));
+        exit(EXIT_FAILURE);
+    }
 
     /* Creation des taches tenvoyer : envoi d'un message au moniteur
 */
@@ -185,10 +190,10 @@ void startTasks() {
         rt_printf("Error task start: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
     }
-   	if (err = rt_task_start(&twatchdog, &watchdog, NULL)) {
+   	/*if (err = rt_task_start(&twatchdog, &watchdog, NULL)) {
         rt_printf("Error task start: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
-    }
+    }*/
     if (err = rt_task_start(&tmission, &mission_reach_coordinates, NULL)) {
         rt_printf("Error task start: %s\n", strerror(-err));
         exit(EXIT_FAILURE);

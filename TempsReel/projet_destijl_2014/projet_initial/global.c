@@ -27,14 +27,12 @@ RT_MUTEX mutexCam;
 RT_MUTEX mutexServeur;
 RT_MUTEX mutexPosition;
 RT_MUTEX mutexArene;
-RT_MUTEX mutexMissionData;
 RT_MUTEX mutexMission;
-//RT_MUTEX mutexTentatives;
 RT_MUTEX mutexEtatMission;
 
 RT_SEM semWatchdog;
 RT_SEM semConnecterRobot;
-RT_SEM semDeconnecterRobot;
+RT_SEM semDeplacer;
 RT_SEM semEffectuerMission;
 
 RT_QUEUE queueMsgGUI;

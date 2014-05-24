@@ -193,7 +193,7 @@
 /*! \def STATUS_ERR_NO_FILE
 \brief La communication avec le robot est correcte
 */
-#define STATUS_ERR_NO_FILE                      (1)
+#define STATUS_ERR_NO_FILE                      (0)
 
 /*! \def STATUS_ERR_TIMEOUT
 \brief Le délai de communicatio est expiré

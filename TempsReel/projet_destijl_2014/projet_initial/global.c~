@@ -27,9 +27,7 @@ RT_MUTEX mutexCam;
 RT_MUTEX mutexServeur;
 RT_MUTEX mutexPosition;
 RT_MUTEX mutexArene;
-RT_MUTEX mutexMissionData;
 RT_MUTEX mutexMission;
-//RT_MUTEX mutexTentatives;
 RT_MUTEX mutexEtatMission;
 
 RT_SEM semWatchdog;
@@ -60,5 +58,5 @@ int PRIORITY_TMOVE = 10;
 int PRIORITY_TENVOYER = 95;   // Pour éviter les segfaults, il faut que la priorité de tenvoyer soit supérieure à toutes celles des fonctions qui utilisent un write in queue
 int PRIORITY_TBATTERIE = 5; 
 int PRIORITY_TMISSION = 30;
-int PRIORITY_TWATCHDOG = 89;
+int PRIORITY_TWATCHDOG = 99;
 int PRIORITY_TCAMERA = 35;
