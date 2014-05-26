@@ -43,6 +43,7 @@ extern RT_MUTEX mutexEtatMission;
 extern RT_SEM semConnecterRobot;
 extern RT_SEM semEffectuerMission;
 extern RT_SEM semWatchdog;
+extern RT_SEM semDeplacer;
 
 /* @descripteurs des files de messages */
 extern RT_QUEUE queueMsgGUI;

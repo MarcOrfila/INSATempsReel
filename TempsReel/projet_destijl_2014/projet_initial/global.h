@@ -44,6 +44,7 @@ extern RT_SEM semConnecterRobot;
 extern RT_SEM semEffectuerMission;
 extern RT_SEM semWatchdog;
 extern RT_SEM semDeplacer;
+extern RT_SEM semBatterie;
 
 /* @descripteurs des files de messages */
 extern RT_QUEUE queueMsgGUI;

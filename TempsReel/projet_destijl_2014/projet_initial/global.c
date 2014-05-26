@@ -34,6 +34,7 @@ RT_SEM semWatchdog;
 RT_SEM semConnecterRobot;
 RT_SEM semDeplacer;
 RT_SEM semEffectuerMission;
+RT_SEM semBatterie;
 
 RT_QUEUE queueMsgGUI;
 

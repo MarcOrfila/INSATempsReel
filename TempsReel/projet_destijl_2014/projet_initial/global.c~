@@ -32,7 +32,7 @@ RT_MUTEX mutexEtatMission;
 
 RT_SEM semWatchdog;
 RT_SEM semConnecterRobot;
-RT_SEM semDeconnecterRobot;
+RT_SEM semDeplacer;
 RT_SEM semEffectuerMission;
 
 RT_QUEUE queueMsgGUI;

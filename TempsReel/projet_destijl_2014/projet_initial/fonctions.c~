@@ -2,7 +2,7 @@
 #include <math.h>
 
 #define TODEGRE *180.0/3.14
-#define DELTA_D 30
+#define DELTA_D 40
 #define DELTA_A 5
 #define LARGEUR 770
 #define LONGUEUR 560
@@ -48,7 +48,6 @@ void camera (void * arg){
 		rt_mutex_acquire(&mutexEtat,TM_INFINITE);
 		status = etatCommMoniteur;
 		rt_mutex_release(&mutexEtat);
-		
 		
 		if (status == STATUS_OK){
 			
@@ -352,8 +351,11 @@ void connecter(void * arg) {
         			tentatives = 0;
         			rt_mutex_release(&mutexErreur);
         			
+        			
         			// Lancement du watchdog
         			rt_sem_v(&semWatchdog);
+        			// Lancement de la batterie 
+        			rt_sem_v(&semBatterie);
         		}
         		// Si ce status n'est pas OK, c'est le démarrage du robot qui a echoué 
         		else {
@@ -369,7 +371,6 @@ void connecter(void * arg) {
 					robot -> stop(robot);
 					robot -> close_com(robot);
 					rt_mutex_release(&mutexRobot);
-//					status = 1;
 
 				}
 			}
@@ -477,7 +478,7 @@ void communiquer(void *arg) {
 			            		// Si on souhaite calculer continuellement la position du robot		
 								case ACTION_COMPUTE_CONTINUOUSLY_POSITION:
 									rt_printf("tserver : Calcul périodique position robot\n");
-									// Maj de etatCamera
+									// Mart_sleepj de etatCamera
 									rt_mutex_acquire(&mutexCam, TM_INFINITE);
 									etatCamera = ACTION_COMPUTE_CONTINUOUSLY_POSITION;
 									rt_mutex_release(&mutexCam);
@@ -546,7 +547,7 @@ void etat_batterie(void *arg) {
     int status ;  
     DMessage * message;
     DBattery * batterie;
-    
+    rt_sem_p(&semBatterie, TM_INFINITE);
     rt_printf("tbatterie : Debut de l'éxecution periodique à 1s\n");
     rt_task_set_periodic(NULL, TM_NOW, 1000000000);
    
@@ -826,7 +827,7 @@ void mission_reach_coordinates(void * arg) {
 						
 						
 						//calcul de l'angle selon lequel le robot doit tourner
-						angle = /*o_robot TODEGRE +*/ atan2(-dy,dx) TODEGRE -180.0 ;
+						angle = o_robot TODEGRE + atan2(-dy,dx) TODEGRE  -180.0 ;
 						
 						//angle = d_position_get_orientation(position)*180.0/3.14 + atan2(-dy,dx)*180.0/3.14 -180.0;
 						//si l'angle est inférieur à un delta donné
@@ -845,7 +846,7 @@ void mission_reach_coordinates(void * arg) {
 						if (angle < - 180)
 							angle = angle + 360;
 							
-							printf("ANGLE : %f", angle);
+							printf("ANGLE : %f \n", angle);
 							//envoi du message au robot
 							busy = 1;
 							//on attend que le robot ait fini sa tâche
@@ -872,14 +873,17 @@ void mission_reach_coordinates(void * arg) {
 											rt_mutex_acquire(&mutexRobot, TM_INFINITE);
 											status = d_robot_turn(robot, angle, HORAIRE);
 											rt_mutex_release(&mutexRobot);
+											printf("---------- TURN1 -----------\n");
 										}
 										while(status !=0);
 									}
 									else{
 										do{
 											rt_mutex_acquire(&mutexRobot, TM_INFINITE);
-											status = d_robot_turn(robot, fabs(angle), ANTI_HORAIRE);
+											//status = d_robot_turn(robot, fabs(angle), ANTI_HORAIRE);
+											status = d_robot_turn(robot, -angle, ANTI_HORAIRE);
 											rt_mutex_release(&mutexRobot);
+											printf("---------- TURN2 -----------\n");											
 										}
 										while (status !=0); 
 									}
@@ -888,12 +892,15 @@ void mission_reach_coordinates(void * arg) {
 									status = d_robot_is_busy(robot, &busy);
 								}								
 								while (busy != 0);
+								//sleep(1);
 								do{
 									rt_mutex_acquire(&mutexRobot, TM_INFINITE);
 									status = d_robot_move(robot, distance/2);
 									rt_mutex_release(&mutexRobot);
+									printf("---------- MOVE -----------\n");									
 								}
 								while (status != 0);
+								
 								do{
 									status = d_robot_is_busy(robot, &busy);
 								}								
@@ -903,81 +910,6 @@ void mission_reach_coordinates(void * arg) {
 							}
 							//rotation effectuée
 						}    	
-												
-						
-					/*	if ((fabs(angle) > DELTA_A) && (busy == 0)) {
-						//if ((angle > DELTA_A || angle <(-DELTA_A)) && (busy = 0)){
-							//le robot a besoin de tourner
-							if (angle > 180)
-								angle = angle - 360;
-							if (angle < - 180)
-								angle = angle + 360;
-							
-							//envoi du message au robot
-							busy = 1;
-							//on attend que le robot ait fini sa tâche
-							while (busy == 1) {
-								//GESTION DE LA PERTE DE CONNEXION
-								again = 0;
-								while(!again) {
-									printf("-------------- AVANT BUSY : BESOIN DE TOURNER ------------ \n");
-									rt_mutex_acquire(&mutexRobot, TM_INFINITE);
-									status = d_robot_is_busy(robot, &busy);
-									rt_mutex_release(&mutexRobot);
-									again = verifierPerteConnexion(status);
-									printf("---------------- AGAIN BUSY : BESOIN DE TOURNER : %d--------\n",again);									
-								}
-								printf("----------------- BOUCLE BUSY ------------- \n");
-							}
-							//le robot a fini sa tâche
-							//envoi de l'ordre de rotation
-							again = 0;
-							while (!again) {
-								printf("----------------- AVANT TURN -------------\n");
-								if (angle >= 0){
-									rt_mutex_acquire(&mutexRobot, TM_INFINITE);
-									status = d_robot_turn(robot, angle, HORAIRE);
-									rt_mutex_release(&mutexRobot);
-								}
-								else{
-									rt_mutex_acquire(&mutexRobot, TM_INFINITE);
-									status = d_robot_turn(robot, fabs(angle), ANTI_HORAIRE);
-									rt_mutex_release(&mutexRobot);
-								}
-								
-								again = verifierPerteConnexion(status);
-								printf("---------------- AGAIN TURN : %d--------\n",again);
-							}
-							//rotation effectuée
-						}    	
-						
-						busy = 1;
-			
-						//on attend que le robot ait fini sa tâche
-						while (busy == 1) {
-							//GESTION DE LA PERTE DE CONNEXION
-							again = 0;
-							while (!again) {
-								printf("----------------- AVANT BUSY : TOUT DROIT -----------\n");
-								rt_mutex_acquire(&mutexRobot, TM_INFINITE);
-								status = d_robot_is_busy(robot, &busy);
-								rt_mutex_release(&mutexRobot);
-								again = verifierPerteConnexion(status);
-								printf("---------------- AGAIN BUSY : TOUT DROIT : %d--------\n",again);
-							}	
-						}
-			
-						//envoi de l'ordre de mouvement
-						again = 0;
-						while (!again) {
-							printf("--------------- AVANT TOUT DROIT ------------\n");
-							rt_mutex_acquire(&mutexRobot, TM_INFINITE);
-							status = d_robot_move(robot, distance);
-							rt_mutex_release(&mutexRobot);
-							again = verifierPerteConnexion(status);
-							printf("---------------- AGAIN TOUT DROIT: %d--------\n",again);
-						}
-					}*/
 					break;
 			
 				case TERMINATED : //fin de la mission
@@ -1047,23 +979,23 @@ int verifierPerteConnexion(int status) {
 		rt_mutex_acquire(&mutexErreur,TM_INFINITE);
 		tentatives++;
 		rt_mutex_release(&mutexErreur);
-		if (tentatives >= 8) { 
+		if (tentatives >= 10) { 
             message = d_new_message();			
 			message->put_state(message, status);
-            rt_printf("tmove : Envoi message\n");
+            rt_printf("Verifier perte connexion : Envoi message\n");
             while (write_in_queue(&queueMsgGUI, message, sizeof (DMessage)) < 0) {
             	message->free(message);
             }
 
-			rt_printf("PLUS DE 3 PERTES DE CONNEXION : SHUTDOWN ! \n"); 
+			rt_printf("TROP DE PERTES DE CONNEXION : SHUTDOWN ! \n"); 
 		return 0;
-		} 
+		}
+	rt_sem_v(&semConnecterRobot); 
 	}
 	rt_mutex_release(&mutexErreur);
 	rt_mutex_acquire(&mutexEtat,TM_INFINITE);
 	etatCommRobot = status;
 	rt_mutex_release(&mutexEtat);
-	rt_sem_v(&semConnecterRobot);
 	return 1; 
 }
 
