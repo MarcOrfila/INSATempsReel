@@ -21,7 +21,9 @@ extern RT_TASK tenvoyer;
 extern RT_TASK tbatterie;
 extern RT_TASK tmission;
 extern RT_TASK tcamera;
+#if defined(WATCHDOG)
 extern RT_TASK twatchdog;
+#endif
 
 /* @descripteurs des mutex */
 extern RT_MUTEX mutexEtat;
@@ -42,8 +44,11 @@ extern RT_MUTEX mutexEtatMission;
 /* @descripteurs des sempahore */
 extern RT_SEM semConnecterRobot;
 extern RT_SEM semEffectuerMission;
+#if defined(WATCHDOG)
 extern RT_SEM semWatchdog;
+#endif
 extern RT_SEM semDeplacer;
+extern RT_SEM semBatterie;
 
 /* @descripteurs des files de messages */
 extern RT_QUEUE queueMsgGUI;
@@ -72,7 +77,9 @@ extern int PRIORITY_TMOVE;
 extern int PRIORITY_TENVOYER;
 extern int PRIORITY_TBATTERIE;
 extern int PRIORITY_TMISSION;
+#if defined(WATCHDOG)
 extern int PRIORITY_TWATCHDOG;
+#endif
 extern int PRIORITY_TCAMERA;
 
 #endif	/* GLOBAL_H */

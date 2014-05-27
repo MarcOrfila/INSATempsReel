@@ -8,6 +8,7 @@
 #define LONGUEUR 560
 
 
+
 int write_in_queue(RT_QUEUE *msgQueue, void * data, int size);
 int verifierPerteConnexion(int status);
 void connexionMoniteurPerdue();
@@ -113,64 +114,68 @@ void camera (void * arg){
 					camera -> get_frame(camera , image);					
 					//Récupération de la position
 					rt_mutex_acquire(&mutexPosition, TM_INFINITE);					
-					rt_mutex_acquire(&mutexArene, TM_INFINITE);					
-					position = image->compute_robot_position(image, arene);					
-					rt_mutex_release(&mutexArene);					
-					if (position != NULL){
-						// Si une position est effectivement calculée, on la dessine sur l'image
-						d_imageshop_draw_position(image,position);
+					rt_mutex_acquire(&mutexArene, TM_INFINITE);	
+					if (arene != NULL){				
+						position = image->compute_robot_position(image, arene);									
+						if (position != NULL){
+							// Si une position est effectivement calculée, on la dessine sur l'image
+							d_imageshop_draw_position(image,position);
 					
-						// Envoi de la position au serveur
+							// Envoi de la position au serveur
+							message = d_new_message();
+							message->put_position(message,position);
+					
+							// Si le write_in_queue ne fonctionne pas (retour d'err est inf à 0) , on efface le message
+							if (write_in_queue(&queueMsgGUI, message, sizeof(DMessage)) < 0) {
+					
+							// Fonction de la structure équivalente à d_message_free
+								//message->free(message);
+						
+							}
+						}
+						else{
+							printf("------------------ POSITION TROP NULLE --------- \n");
+						}
+					
+						rt_mutex_release(&mutexPosition);
+					
+						// Création d'une image de format compressé (compression JPEG)
+						jpegimg = d_new_jpegimage();
+					
+						if (image != NULL){
+						// Compression de l'image acquise précedemment
+							jpegimg -> compress(jpegimg,image);
+						}
+						// Envoi de l'image compressée au serveur
+					
 						message = d_new_message();
-						message->put_position(message,position);
+						message->put_jpeg_image(message,jpegimg);
+					
 					
 						// Si le write_in_queue ne fonctionne pas (retour d'err est inf à 0) , on efface le message
 						if (write_in_queue(&queueMsgGUI, message, sizeof(DMessage)) < 0) {
 					
 						// Fonction de la structure équivalente à d_message_free
 							//message->free(message);
-						
+						}
+					
+						// Routine de fin de traitement					
+						backupEtat = etat ;
+						if (jpegimg != NULL){
+							jpegimg->free(jpegimg);
+						}
+						if (image != NULL){
+							image->free(image);
 						}
 					}
-					else{
-						printf("------------------ POSITION TROP NULLE --------- \n");
-					}
-					
-					rt_mutex_release(&mutexPosition);
-					
-					// Création d'une image de format compressé (compression JPEG)
-					jpegimg = d_new_jpegimage();
-					
-					if (image != NULL){
-					// Compression de l'image acquise précedemment
-						jpegimg -> compress(jpegimg,image);
-					}
-					// Envoi de l'image compressée au serveur
-					
-					message = d_new_message();
-					message->put_jpeg_image(message,jpegimg);
-					
-					
-					// Si le write_in_queue ne fonctionne pas (retour d'err est inf à 0) , on efface le message
-					if (write_in_queue(&queueMsgGUI, message, sizeof(DMessage)) < 0) {
-					
-					// Fonction de la structure équivalente à d_message_free
-						//message->free(message);
-					}
-					
-					// Routine de fin de traitement					
-					backupEtat = etat ;
-					if (jpegimg != NULL){
-						jpegimg->free(jpegimg);
-					}
-					if (image != NULL){
-						image->free(image);
-					}
-					
+					rt_mutex_release(&mutexArene);						
 				break;
 				
 				// Demande de détection d'arène (ne devrait arriver qu'une fois à l'initialisation du système)	
 				case ACTION_FIND_ARENA : 
+		        	rt_mutex_acquire(&mutexArene, TM_INFINITE);
+		        	arene = d_new_arena();
+		        	rt_mutex_release(&mutexArene);				
 					// Instruction de contrôle (visible sur terminal) 
 					rt_printf("-------------------- DEMANDE DETECTION ARENE THREAD CAMERA -------------------- \n");
 					
@@ -234,7 +239,8 @@ void camera (void * arg){
 						
 					// Nettoyage de la structure arène
 					rt_mutex_acquire(&mutexArene, TM_INFINITE);
-					//arene->free(arene);
+					arene->free(arene);
+					arene = NULL;
 					rt_mutex_release(&mutexArene);
 					
 					// Modification de l'étatCamera sur le dernier état de fonctionnement normal connu
@@ -332,12 +338,16 @@ void connecter(void * arg) {
         		{
         		// Demarrage du robot
 		    		rt_mutex_acquire(&mutexRobot, TM_INFINITE);
-		    		status = robot -> start_insecurely(robot);
+		    		status = robot -> start(robot);
 		    		rt_mutex_release(&mutexRobot);
         		}
         		while ((status != STATUS_OK) && (status != STATUS_ERR_CHECKSUM));
         		// Si le robot a démarré, on le renseigne a etatCommRobot et on lance le watchdog
         		rt_sem_v(&semDeplacer);
+        			// Lancement du watchdog
+        		rt_sem_v(&semWatchdog);
+        			// Lancement de la batterie 
+        		rt_sem_v(&semBatterie);        		
         		if ((status == STATUS_OK) || (status == STATUS_ERR_CHECKSUM)){
         			// Instruction de controle
         			rt_printf("-------------------- SUCCES DEMARRAGE ROBOT THREAD CONNECTER -------------------- \n");
@@ -351,11 +361,6 @@ void connecter(void * arg) {
         			tentatives = 0;
         			rt_mutex_release(&mutexErreur);
         			
-        			
-        			// Lancement du watchdog
-        			rt_sem_v(&semWatchdog);
-        			// Lancement de la batterie 
-        			rt_sem_v(&semBatterie);
         		}
         		// Si ce status n'est pas OK, c'est le démarrage du robot qui a echoué 
         		else {
@@ -600,6 +605,7 @@ void deplacer(void *arg) {
     int status = 1;
     int gauche;
     int droite;
+    etats_mission etatMissionLocal = NONE;
     DMessage *message;
     rt_printf("tmove : Debut de l'éxecution de periodique à 200 ms\n");
     rt_task_set_periodic(NULL, TM_NOW, 200000000);
@@ -613,8 +619,12 @@ void deplacer(void *arg) {
         rt_mutex_acquire(&mutexEtat, TM_INFINITE);
         status = etatCommRobot;
         rt_mutex_release(&mutexEtat);
+        
+        rt_mutex_acquire(&mutexEtatMission,TM_INFINITE);
+        etatMissionLocal = etatMission;
+        rt_mutex_release(&mutexEtatMission);
 		// Si la communication avec le robot est OK, on modifie les caractéristiques du moteur en fonction du message et de la vitesse
-        if (status == STATUS_OK) {
+        if (status == STATUS_OK && etatMissionLocal != PENDING) {
             rt_mutex_acquire(&mutexMove, TM_INFINITE);
             switch (move->get_direction(move)) {
                 case DIRECTION_FORWARD:
@@ -769,25 +779,20 @@ void mission_reach_coordinates(void * arg) {
 					status = robot->set_motors(robot, MOTEUR_STOP, MOTEUR_STOP);
 					rt_mutex_release(&mutexRobot);
 					verifierPerteConnexion(status);
-					printf("------------- ON A PASSE LE SET MOTEURS --------------------------- \n");
 					x_destination = d_position_get_x(destination);
 					y_destination = d_position_get_y(destination);
 					
-					printf("----------- Avant dimensions arene ------------------------ \n");
 					//récupérer les dimensions de l'arene
 					rt_mutex_acquire(&mutexArene, TM_INFINITE);
 					h_arene = arene -> get_height(arene);
 					w_arene = arene -> get_width(arene);
-					rt_mutex_release(&mutexArene);
-					
-					printf("--------------- ON A PASSE LES DIMENSIONS DE L'ARENE ---------------- \n");
-					
+					rt_mutex_release(&mutexArene);					
+				
 					//mettre la caméra dans un état de calcul de position du robot
 					rt_mutex_acquire(&mutexCam, TM_INFINITE);
 					etatCamera = ACTION_COMPUTE_CONTINUOUSLY_POSITION;
 					rt_mutex_release(&mutexCam);
 					
-					printf(" --------------------- ON A PASSE LE CHANGEMENT D'ETAT CAMERA ------------ \n");
 					//on change l'état de la mission à PENDING
 					rt_mutex_acquire(&mutexEtatMission, TM_INFINITE);
 					if (etatMission != TERMINATED){
@@ -799,16 +804,13 @@ void mission_reach_coordinates(void * arg) {
 				case PENDING : //mission en cours à effectuer
 					//récupération de la position
 					
-					printf("-------------- ON EST CASE PENDING ------------ \n");
 					rt_mutex_acquire(&mutexPosition,TM_INFINITE);
 					if(position != NULL){
 						x_robot = d_position_get_x(position);
 						y_robot = d_position_get_y(position);
 						o_robot = d_position_get_orientation(position);
 					}
-					rt_mutex_release(&mutexPosition);
-					
-					printf("------------- ON A PASSE L'ACQUISITION DE POSITION ----------- \n");
+					rt_mutex_release(&mutexPosition);					
 				
 					//calcul de la distance à parcourir
 					dx = (x_robot - x_destination) * LARGEUR/w_arene;
@@ -873,7 +875,6 @@ void mission_reach_coordinates(void * arg) {
 											rt_mutex_acquire(&mutexRobot, TM_INFINITE);
 											status = d_robot_turn(robot, angle, HORAIRE);
 											rt_mutex_release(&mutexRobot);
-											printf("---------- TURN1 -----------\n");
 										}
 										while(status !=0);
 									}
@@ -882,8 +883,7 @@ void mission_reach_coordinates(void * arg) {
 											rt_mutex_acquire(&mutexRobot, TM_INFINITE);
 											//status = d_robot_turn(robot, fabs(angle), ANTI_HORAIRE);
 											status = d_robot_turn(robot, -angle, ANTI_HORAIRE);
-											rt_mutex_release(&mutexRobot);
-											printf("---------- TURN2 -----------\n");											
+											rt_mutex_release(&mutexRobot);											
 										}
 										while (status !=0); 
 									}
@@ -896,8 +896,7 @@ void mission_reach_coordinates(void * arg) {
 								do{
 									rt_mutex_acquire(&mutexRobot, TM_INFINITE);
 									status = d_robot_move(robot, distance/2);
-									rt_mutex_release(&mutexRobot);
-									printf("---------- MOVE -----------\n");									
+									rt_mutex_release(&mutexRobot);								
 								}
 								while (status != 0);
 								
@@ -906,7 +905,6 @@ void mission_reach_coordinates(void * arg) {
 								}								
 								while (busy != 0);								
 								again = verifierPerteConnexion(status);
-								printf("---------------- AGAIN TURN : %d--------\n",again);
 							}
 							//rotation effectuée
 						}    	
@@ -986,7 +984,12 @@ int verifierPerteConnexion(int status) {
             while (write_in_queue(&queueMsgGUI, message, sizeof (DMessage)) < 0) {
             	message->free(message);
             }
-
+            
+            rt_sem_p(&semBatterie,TM_INFINITE);
+            rt_sem_p(&semConnecterRobot, TM_INFINITE);
+            rt_sem_p(&semDeplacer, TM_INFINITE);
+            rt_sem_p(&semEffectuerMission, TM_INFINITE);
+            rt_sem_p(&semWatchdog, TM_INFINITE);
 			rt_printf("TROP DE PERTES DE CONNEXION : SHUTDOWN ! \n"); 
 		return 0;
 		}

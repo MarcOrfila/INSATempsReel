@@ -169,7 +169,7 @@ void initStruct(void) {
     serveur = d_new_server();
     mission = d_new_mission();
     position = d_new_position();
-    arene = d_new_arena();
+    arene = NULL;
 }
 
 void startTasks() {
@@ -194,10 +194,12 @@ void startTasks() {
         rt_printf("Error task start: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
     }
-   	/*if (err = rt_task_start(&twatchdog, &watchdog, NULL)) {
+    /*
+   	if (err = rt_task_start(&twatchdog, &watchdog, NULL)) {
         rt_printf("Error task start: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
-    }*/
+    }
+    */
     if (err = rt_task_start(&tmission, &mission_reach_coordinates, NULL)) {
         rt_printf("Error task start: %s\n", strerror(-err));
         exit(EXIT_FAILURE);
