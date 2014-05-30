@@ -1,9 +1,27 @@
-/* 
- * File:   fonctions.h
- * Author: pehladik
- *
- * Created on 12 janvier 2012, 10:19
- */
+/* Institut National des Sciences Appliquées de Toulouse - Année universitaire 2013/2014
+
+4ème année Informatique et Réseaux - Option Informatique
+
+Groupe B2
+
+Unité de Formation : Systèmes Concurrents et Temps Réel
+
+Responsable d'UF : Claude Baron (claude.baron@insa-toulouse.fr)
+Responsable Projet : Pierre-Emmanuel Hladik (pehladik@laas.fr)
+Encadrante de TP : Carla Sauvanaud (csauvana@laas.fr)
+
+Membres du Groupe : 
+
+BIDEAUD Marie-Charlotte (bideaud@etud.insa-toulouse.fr)
+DUGRAND Marjorie (dugrand@etud.insa-toulouse.fr)
+FAYOLLE Nicolas (fayolle@etud.insa-toulouse.fr)
+LETT Alexandre (lett@etud.insa-toulouse.fr)
+ORFILA Marc (orfila@etud.insa-toulouse.fr)
+
+Date de soutenance : 27 mai 2014 
+Remise du rapport et du code : 30 mai 2014
+*/
+
 
 #ifndef FONCTIONS_H
 #define	FONCTIONS_H
@@ -14,6 +32,7 @@
 #ifdef	__cplusplus
 extern "C" {
 #endif
+        
         void connecter (void * arg);
         void communiquer(void *arg);
         void deplacer(void *arg);
@@ -21,6 +40,8 @@ extern "C" {
         void etat_batterie(void *arg);
         void mission_reach_coordinates(void * arg);
         void watchdog(void *arg);
+        void camera(void *arg);
+        
 #ifdef	__cplusplus
 }
 #endif
